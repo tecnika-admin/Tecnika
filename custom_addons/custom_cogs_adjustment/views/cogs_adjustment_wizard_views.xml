@@ -5,11 +5,14 @@
             <field name="name">Ajustar Costo de Venta</field>
             <field name="res_model">cogs.adjustment.wizard</field>
             <field name="view_mode">form</field>
-            <field name="target">new</field> </record>
+            <field name="target">new</field>
+        </record>
 
         <record id="view_cogs_adjustment_wizard_line_tree" model="ir.ui.view">
             <field name="name">cogs.adjustment.wizard.line.tree</field>
-            <field name="model">cogs.adjustment.wizard.line</field> <field name="arch" type="xml">
+            <field name="model">cogs.adjustment.wizard.line</field>
+            <field name="type">tree</field> 
+            <field name="arch" type="xml">
                 <tree string="Líneas de Factura a Ajustar" editable="bottom">
                     <field name="product_id" readonly="1" force_save="1"/>
                     <field name="quantity" readonly="1" force_save="1"/>
