@@ -7,6 +7,20 @@
             <field name="view_mode">form</field>
             <field name="target">new</field> </record>
 
+        <record id="view_cogs_adjustment_wizard_line_tree" model="ir.ui.view">
+            <field name="name">cogs.adjustment.wizard.line.tree</field>
+            <field name="model">cogs.adjustment.wizard.line</field> <field name="arch" type="xml">
+                <tree string="Líneas de Factura a Ajustar" editable="bottom">
+                    <field name="product_id" readonly="1" force_save="1"/>
+                    <field name="quantity" readonly="1" force_save="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="original_cost_total" readonly="1" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                    <field name="new_cost_unit" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                    <field name="adjustment_value" readonly="1" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                </tree>
+            </field>
+        </record>
+
         <record id="view_cogs_adjustment_wizard_form" model="ir.ui.view">
             <field name="name">cogs.adjustment.wizard.form</field>
             <field name="model">cogs.adjustment.wizard</field>
@@ -23,15 +37,7 @@
                         </group>
                         <notebook>
                             <page string="Líneas a Ajustar" name="adjustment_lines">
-                                <field name="line_ids" nolabel="1">
-                                    <tree string="Líneas de Factura a Ajustar" editable="bottom">
-                                        <field name="quantity" readonly="1" force_save="1"/>
-                                        <field name="currency_id" invisible="1"/>
-                                        <field name="original_cost_total" readonly="1" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                        <field name="new_cost_unit" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                        <field name="adjustment_value" readonly="1" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                    </tree>
-                                </field>
+                                <field name="line_ids" nolabel="1"/>
                             </page>
                         </notebook>
                     </sheet>
@@ -42,5 +48,6 @@
                 </form>
             </field>
         </record>
+
     </data>
 </odoo>
