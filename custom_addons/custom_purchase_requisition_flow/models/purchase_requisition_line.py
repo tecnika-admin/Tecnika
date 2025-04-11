@@ -2,7 +2,16 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
-from odoo.tools import float_compare
+# Importar float_compare directamente si está disponible globalmente o desde tools
+try:
+    from odoo.tools import float_compare
+except ImportError:
+    # Fallback simple si no se encuentra (menos preciso)
+    def float_compare(val1, val2, precision_digits=3):
+        epsilon = 10**(-precision_digits)
+        if val1 > val2 + epsilon: return 1
+        elif val1 < val2 - epsilon: return -1
+        else: return 0
 
 class PurchaseRequisitionLine(models.Model):
     _inherit = 'purchase.requisition.line'
@@ -16,26 +25,26 @@ class PurchaseRequisitionLine(models.Model):
         help="Cantidad total de este producto ordenada en Órdenes de Compra confirmadas relacionadas con este acuerdo."
     )
     qty_fab = fields.Float(
-        string="En Fabricación",
+        string="Fabricación",
         compute='_compute_qty_fab',
         store=True,
         digits='Product Unit of Measure',
         help="Cantidad calculada que aún está en proceso de fabricación (Ordenada - Otras Etapas)."
     )
     qty_almmarc = fields.Float(
-        string="Almacén Marca",
+        string="Marca",
         digits='Product Unit of Measure',
         copy=False,
         help="Cantidad actualmente en el almacén de la marca."
     )
     qty_almmay = fields.Float(
-        string="Almacén Mayorista",
+        string="Mayorista",
         digits='Product Unit of Measure',
         copy=False,
         help="Cantidad actualmente en el almacén del mayorista."
     )
     qty_almtec = fields.Float(
-        string="Almacén Tecnika",
+        string="Tecnika",
         compute='_compute_qty_almtec',
         store=True,
         digits='Product Unit of Measure',
@@ -51,7 +60,6 @@ class PurchaseRequisitionLine(models.Model):
 
     # --- Lógica de Cálculo con @api.depends ---
 
-    # CORREGIDO: Usar 'purchase_ids' en lugar de 'order_ids'
     @api.depends('requisition_id.purchase_ids.state', 'requisition_id.purchase_ids.order_line.product_qty', 'requisition_id.purchase_ids.order_line.product_id')
     def _compute_qty_ordered_calc(self):
         """Calcula la cantidad total ordenada en POs confirmadas."""
@@ -61,16 +69,15 @@ class PurchaseRequisitionLine(models.Model):
                 line.qty_ordered_calc = 0.0
                 continue
 
-            # Usar 'purchase_ids' para buscar las POs relacionadas
             po_ids = line.requisition_id.purchase_ids.ids
             if not po_ids:
                  line.qty_ordered_calc = 0.0
                  continue
 
             domain = [
-                ('order_id', 'in', po_ids), # Filtrar por las POs de la requisición
+                ('order_id', 'in', po_ids),
                 ('product_id', '=', line.product_id.id),
-                ('order_id.state', '=', 'purchase') # Solo POs confirmadas
+                ('order_id.state', '=', 'purchase')
             ]
             grouped_data = PurchaseOrderLine.read_group(
                 domain=domain,
@@ -82,7 +89,6 @@ class PurchaseRequisitionLine(models.Model):
                 total_ordered = grouped_data[0].get('product_qty', 0.0) or 0.0
             line.qty_ordered_calc = total_ordered
 
-    # CORREGIDO: Usar 'purchase_ids' en la dependencia y lógica relacionada
     @api.depends('requisition_id.purchase_ids.order_line.move_ids.state', 'requisition_id.purchase_ids.order_line.move_ids.quantity')
     def _compute_qty_almtec(self):
         """Calcula la cantidad total recibida en Tecnika basada en stock.moves."""
@@ -92,27 +98,25 @@ class PurchaseRequisitionLine(models.Model):
                 line.qty_almtec = 0.0
                 continue
 
-            # Obtener las líneas de PO relevantes de la requisición
             relevant_po_lines = self.env['purchase.order.line'].search([
                 ('order_id.requisition_id', '=', line.requisition_id.id),
                 ('product_id', '=', line.product_id.id),
-                ('order_id.state', 'in', ['purchase', 'done']) # Considerar POs confirmadas o hechas
+                ('order_id.state', 'in', ['purchase', 'done'])
             ])
 
             if not relevant_po_lines:
                 line.qty_almtec = 0.0
                 continue
 
-            # Buscar movimientos de stock relevantes asociados a esas líneas de PO
             domain_moves = [
-                ('state', '=', 'done'), # Movimientos completados
-                ('purchase_line_id', 'in', relevant_po_lines.ids), # De las líneas de PO relevantes
-                ('product_id', '=', line.product_id.id), # Mismo producto (redundante pero seguro)
-                ('location_dest_id.usage', '=', 'internal') # Destino es un almacén interno (recepción)
+                ('state', '=', 'done'),
+                ('purchase_line_id', 'in', relevant_po_lines.ids),
+                ('product_id', '=', line.product_id.id),
+                ('location_dest_id.usage', '=', 'internal')
             ]
 
             found_moves = StockMove.search(domain_moves)
-            total_received = sum(m.quantity for m in found_moves) # Usar 'quantity' como se confirmó antes
+            total_received = sum(m.quantity for m in found_moves)
             line.qty_almtec = total_received
 
     @api.depends('qty_ordered_calc', 'qty_almmarc', 'qty_almmay', 'qty_almtec', 'qty_cli')
@@ -145,12 +149,7 @@ class PurchaseRequisitionLine(models.Model):
             delta = qty_almmarc_new - qty_almmarc_old
 
             if float_compare(delta, 0.0, precision_digits=precision) > 0:
-                # No podemos restar directamente de qty_fab porque es calculado.
-                # La validación @api.constrains se asegurará de que la suma cuadre.
-                # Si quisiéramos forzarlo, tendríamos que ajustar los otros campos
-                # o lanzar un error si el usuario no lo hace consistentemente.
-                # Por ahora, confiamos en la validación final.
-                pass
+                pass # Confiamos en la validación final
 
     @api.onchange('qty_almmay')
     def _onchange_qty_almmay(self):
@@ -166,8 +165,7 @@ class PurchaseRequisitionLine(models.Model):
                 if float_compare(qty_almmarc_current, delta, precision_digits=precision) >= 0:
                     self.qty_almmarc = qty_almmarc_current - delta
                 else:
-                    # Restaurar valor anterior o lanzar error
-                    self.qty_almmay = qty_almmay_old # Revertir cambio en UI
+                    self.qty_almmay = qty_almmay_old
                     raise UserError(_(
                         "No se puede mover %.{precision}f a Almacén Mayorista desde Almacén Marca porque solo hay %.{precision}f en Almacén Marca."
                     ).format(precision=precision) % (delta, qty_almmarc_current))
@@ -184,10 +182,7 @@ class PurchaseRequisitionLine(models.Model):
             if float_compare(delta, 0.0, precision_digits=precision) > 0:
                 qty_almtec_current = self.qty_almtec or 0.0
                 if float_compare(qty_almtec_current, delta, precision_digits=precision) < 0:
-                    # Solo validamos, no restamos de almtec porque es calculado.
-                    # El usuario tendría que ajustar manualmente los pasos anteriores
-                    # para que la validación final cuadre.
-                    self.qty_cli = qty_cli_old # Revertir cambio en UI
+                    self.qty_cli = qty_cli_old
                     raise UserError(_(
                         "No se puede mover %.{precision}f a Cliente porque solo hay %.{precision}f calculadas en Almacén Tecnika. Ajuste los pasos anteriores."
                     ).format(precision=precision) % (delta, qty_almtec_current))
@@ -224,37 +219,36 @@ class PurchaseRequisitionLine(models.Model):
             # 2. Verificar que la suma total cuadre
             total_sum = fab + almmarc + almmay + almtec + cli
             if float_compare(total_sum, ordered, precision_digits=precision) != 0:
+                # CORRECCIÓN: Formatear números a string ANTES de pasarlos a %
+                err_total_sum_str = f"{total_sum:.{precision}f}"
+                err_ordered_str = f"{ordered:.{precision}f}"
+                err_fab_str = f"{fab:.{precision}f}"
+                err_almmarc_str = f"{almmarc:.{precision}f}"
+                err_almmay_str = f"{almmay:.{precision}f}"
+                err_almtec_str = f"{almtec:.{precision}f}"
+                err_cli_str = f"{cli:.{precision}f}"
+
                 raise ValidationError(_(
                     "Error de Validación en línea de producto '%(product)s':\n"
-                    "La suma de cantidades (%(total_sum).{precision}f) no coincide con la Cantidad Ordenada (%(ordered).{precision}f).\n\n"
+                    "La suma de cantidades (%(total_sum)s) no coincide con la Cantidad Ordenada (%(ordered)s).\n\n" # Usar %s
                     "Detalle:\n"
-                    "- En Fabricación: %(fab).{precision}f\n"
-                    "- Almacén Marca: %(almmarc).{precision}f\n"
-                    "- Almacén Mayorista: %(almmay).{precision}f\n"
-                    "- Almacén Tecnika: %(almtec).{precision}f\n"
-                    "- Cliente: %(cli).{precision}f\n\n"
+                    "- En Fabricación: %(fab)s\n" # Usar %s
+                    "- Almacén Marca: %(almmarc)s\n" # Usar %s
+                    "- Almacén Mayorista: %(almmay)s\n" # Usar %s
+                    "- Almacén Tecnika: %(almtec)s\n" # Usar %s
+                    "- Cliente: %(cli)s\n" # Usar %s
+                    "--------------------\n"
+                    "Suma Actual: %(total_sum)s\n" # Usar %s
+                    "Cantidad Ordenada: %(ordered)s\n\n" # Usar %s
                     "Por favor, ajuste las cantidades."
-                ) % {
+                ) % { # Pasar strings formateados al diccionario
                     'product': line.product_id.display_name,
-                    'total_sum': total_sum,
-                    'ordered': ordered,
-                    'fab': fab,
-                    'almmarc': almmarc,
-                    'almmay': almmay,
-                    'almtec': almtec,
-                    'cli': cli,
-                    'precision': precision
+                    'total_sum': err_total_sum_str,
+                    'ordered': err_ordered_str,
+                    'fab': err_fab_str,
+                    'almmarc': err_almmarc_str,
+                    'almmay': err_almmay_str,
+                    'almtec': err_almtec_str,
+                    'cli': err_cli_str,
                 })
-
-
-
-    # --- Consideración Adicional ---
-    # Si 'qty_almtec' aumenta (por la computación basada en stock.move),
-    # ¿debería disminuir 'qty_almmay' automáticamente?
-    # Hacer esto desde un @api.depends es complejo porque implicaría escribir
-    # en otro campo (qty_almmay) lo cual no es la función principal de depends.
-    # Podría hacerse en el 'write' o con un onchange inverso si fuera necesario,
-    # pero aumenta mucho la complejidad y riesgo de bucles.
-    # Por ahora, la validación @api.constrains asegurará que si almtec aumenta,
-    # el usuario deberá reducir manualmente almmay (o almmarc o cli) para que la suma cuadre.
 

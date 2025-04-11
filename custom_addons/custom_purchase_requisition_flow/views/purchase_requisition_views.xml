@@ -9,11 +9,11 @@
             <field name="arch" type="xml">
 
                 <xpath expr="//field[@name='line_ids']/list/field[@name='product_qty']" position="after">
-                    <field name="qty_ordered_calc" string="Cant. Ordenada (Calc)" readonly="1" optional="show"/>
-                    <field name="qty_fab" string="En Fabricación" readonly="1" optional="show"/>
-                    <field name="qty_almmarc" string="Alm. Marca" optional="show"/>
-                    <field name="qty_almmay" string="Alm. Mayorista" optional="show"/>
-                    <field name="qty_almtec" string="Alm. Tecnika" readonly="1" optional="show"/>
+                    <field name="qty_ordered_calc" string="Ordenado" readonly="1" optional="show"/>
+                    <field name="qty_fab" string="Fabricación" readonly="1" optional="show"/>
+                    <field name="qty_almmarc" string="Marca" optional="show"/>
+                    <field name="qty_almmay" string="Mayorista" optional="show"/>
+                    <field name="qty_almtec" string="Tecnika" readonly="1" optional="show"/>
                     <field name="qty_cli" string="Cliente" optional="show"/>
                 </xpath>
 
