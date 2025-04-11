@@ -11,8 +11,7 @@
                             string="Ajustar Costo de Venta"
                             type="object"
                             groups="custom_cogs_adjustment.group_cogs_adjustment_user"
-                            attrs="{'invisible': ['|', ('state', '!=', 'posted'), \
-                                                    ('move_type', 'not in', ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'))]}"
+                            invisible="state != 'posted' or move_type not in ('out_invoice', 'out_refund', 'in_invoice', 'in_refund')"
                             help="Abre el asistente para corregir el costo de venta y la valoración de inventario asociados a esta factura."/>
                             
                             </xpath>
