@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="action_cogs_adjustment_wizard" model="ir.actions.act_window">
+            <field name="name">Ajustar Costo de Venta</field>
+            <field name="res_model">cogs.adjustment.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field> </record>
+
+        <record id="view_cogs_adjustment_wizard_form" model="ir.ui.view">
+            <field name="name">cogs.adjustment.wizard.form</field>
+            <field name="model">cogs.adjustment.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Asistente de Ajuste de Costo de Venta">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="invoice_id" readonly="1" options="{'no_open': True}"/>
+                            </group>
+                            <group>
+                                <field name="accounting_date"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Líneas a Ajustar" name="adjustment_lines">
+                                <field name="line_ids" nolabel="1">
+                                    <tree string="Líneas de Factura a Ajustar" editable="bottom">
+                                        <field name="invoice_line_id" invisible="1"/> <field name="product_id" readonly="1" force_save="1"/> <field name="quantity" readonly="1" force_save="1"/>
+                                        <field name="currency_id" invisible="1"/> <field name="original_cost_total" readonly="1" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        <field name="new_cost_unit" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        <field name="adjustment_value" readonly="1" force_save="1" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    </tree>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <footer>
+                        <button name="action_apply_adjustments" string="Aplicar Ajustes" type="object" class="btn-primary" data-hotkey="q"/>
+                        <button string="Cancelar" class="btn-secondary" special="cancel" data-hotkey="z"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+    </data>
+</odoo>

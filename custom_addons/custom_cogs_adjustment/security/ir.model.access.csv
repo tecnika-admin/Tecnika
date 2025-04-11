@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_cogs_adjustment_wizard,access.cogs.adjustment.wizard,model_cogs_adjustment_wizard,group_cogs_adjustment_user,1,1,1,1
+access_cogs_adjustment_wizard_line,access.cogs.adjustment.wizard.line,model_cogs_adjustment_wizard_line,group_cogs_adjustment_user,1,1,1,1
