@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_cost_correction_wizard,cost.correction.wizard.access,model_cost_correction_wizard,account.group_account_manager,1,1,1,1
-access_cost_correction_wizard_line,cost.correction.wizard.line.access,model_cost_correction_wizard_line,account.group_account_manager,1,1,1,1
+access_cost_correction_batch_user,cost.correction.batch.user,model_cost_correction_batch,account.group_account_invoice,1,1,1,0
+access_cost_correction_batch_line_user,cost.correction.batch.line.user,model_cost_correction_batch_line,account.group_account_invoice,1,1,1,0
+access_cost_correction_batch_manager,cost.correction.batch.manager,model_cost_correction_batch,account.group_account_manager,1,1,1,1
+access_cost_correction_batch_line_manager,cost.correction.batch.line.manager,model_cost_correction_batch_line,account.group_account_manager,1,1,1,1

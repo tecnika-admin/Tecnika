@@ -20,8 +20,9 @@
     ],
     'data': [
         'security/ir.model.access.csv',
-        'wizard/cost_correction_wizard_views.xml',
         'views/account_move_views.xml',
+        'views/cost_correction_batch_views.xml',
+        'data/ir_sequence_data.xml',
     ],
     'installable': True,
     'application': False,
