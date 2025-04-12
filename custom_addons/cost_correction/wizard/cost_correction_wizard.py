@@ -2,7 +2,7 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 
-class CostCorrectionWizard(models.TransientModel):
+class CostCorrectionWizard(models.Model):
     _name = 'cost.correction.wizard'
     _description = 'Wizard for Correcting Invoice Line Costs'
 
@@ -75,7 +75,7 @@ class CostCorrectionWizard(models.TransientModel):
         return {'type': 'ir.actions.act_window_close'}
 
 
-class CostCorrectionWizardLine(models.TransientModel):
+class CostCorrectionWizardLine(models.Model):
     _name = 'cost.correction.wizard.line'
     _description = 'Line for Cost Correction Wizard'
 
