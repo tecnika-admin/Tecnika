@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <record id="view_move_form_cost_correction_inherit" model="ir.ui.view">
+
+        <record id="account_move_form_cost_correction_inherit" model="ir.ui.view">
             <field name="name">account.move.form.cost.correction.inherit</field>
             <field name="model">account.move</field>
             <field name="inherit_id" ref="account.view_move_form"/>
             <field name="arch" type="xml">
-                <xpath expr="//header" position="inside">
-                    <button name="action_open_cost_correction_wizard"
-                            string="Correct Product Cost"
-                            type="object"
-                            class="oe_highlight"
-                            attrs="{'invisible': ['|', ('state', '!=', 'posted'), ('move_type', '!=', 'out_invoice')]}"
-                            groups="account.group_account_manager"/>
-                            </xpath>
-            </field>
+                </field>
         </record>
+
     </data>
 </odoo>
