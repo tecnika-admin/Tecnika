@@ -2,29 +2,21 @@
 <odoo>
     <data>
 
-        <record id="view_cost_correction_wizard_line_tree" model="ir.ui.view">
-            <field name="name">cost.correction.wizard.line.tree</field>
-            <field name="model">cost.correction.wizard.line</field> <field name="arch" type="xml">
-                <tree editable="bottom">
-                    <field name="selected"/>
-                    <field name="invoice_line_id" invisible="1"/>
-                    <field name="product_id" readonly="1" force_save="1"/>
-                    <field name="quantity" readonly="1" force_save="1"/>
-                    <field name="correct_unit_cost" required="1"/>
-                </tree>
-            </field>
-        </record>
-
         <record id="view_cost_correction_wizard_form" model="ir.ui.view">
             <field name="name">cost.correction.wizard.form</field>
-            <field name="model">cost.correction.wizard</field> <field name="arch" type="xml">
+            <field name="model">cost.correction.wizard</field>
+            <field name="arch" type="xml">
                 <form string="Correct Invoice Line Costs">
                     <group>
-                        <field name="invoice_id"/> </group>
+                        <field name="invoice_id"/>
+                    </group>
                     <notebook>
                         <page string="Lines to Correct" name="correction_lines">
                             <field name="line_ids" nolabel="1">
-                                </field>
+                                <tree editable="bottom">
+                                    <field name="selected"/>
+                                    </tree>
+                            </field>
                         </page>
                     </notebook>
                     <footer>
