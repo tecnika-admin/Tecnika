@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="view_cost_adjustment_tree" model="ir.ui.view">
+            <field name="name">cost.adjustment.tree</field>
+            <field name="model">cost.adjustment</field>
+            <field name="arch" type="xml">
+                <tree string="Ajustes de Costo" decoration-info="state=='draft'" decoration-muted="state=='cancel'">
+                    <field name="name"/>
+                    <field name="date_adjustment"/>
+                    <field name="original_invoice_id"/>
+                    <field name="journal_id"/>
+                    <field name="company_id" groups="base.group_multi_company"/>
+                    <field name="state" widget="badge" decoration-success="state=='posted'" decoration-info="state=='draft'" decoration-muted="state=='cancel'"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_cost_adjustment_form" model="ir.ui.view">
+            <field name="name">cost.adjustment.form</field>
+            <field name="model">cost.adjustment</field>
+            <field name="arch" type="xml">
+                <form string="Ajuste de Costo">
+                    <header>
+                        <button name="action_post" type="object" string="Publicar" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                        <button name="action_cancel" type="object" string="Cancelar" attrs="{'invisible': [('state', 'not in', ['draft', 'posted'])]}"/>
+                        <button name="action_draft" type="object" string="Reestablecer a Borrador" attrs="{'invisible': [('state', '!=', 'cancel')]}"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="original_invoice_id" options="{'no_create': True, 'no_open': False}" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                <field name="journal_id" options="{'no_create': True}" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                <field name="company_id" groups="base.group_multi_company"/>
+                                <field name="currency_id" invisible="1"/> </group>
+                            <group>
+                                <field name="date_adjustment" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                <field name="auto_post_entry" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                <field name="adjustment_move_id" readonly="1"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Líneas de Ajuste" name="adjustment_lines">
+                                <field name="line_ids" attrs="{'readonly': [('state', '!=', 'draft')]}">
+                                    <tree string="Líneas de Ajuste" editable="bottom">
+                                        <field name="original_invoice_line_id"
+                                               required="1"
+                                               options="{'no_create': True, 'no_open': True}"
+                                               domain="[('move_id', '=', parent.original_invoice_id), ('display_type', '=', False), ('product_id', '!=', False), ('product_id.valuation', '=', 'real_time')]"
+                                               context="{'default_move_id': parent.original_invoice_id}"/>
+                                        <field name="product_id" readonly="1" force_save="1"/>
+                                        <field name="quantity" readonly="1" force_save="1"/>
+                                        <field name="original_cost_total" readonly="1"/>
+                                        <field name="current_average_cost" readonly="1"/>
+                                        <field name="adjustment_amount" readonly="1" sum="Total Ajuste"/>
+                                        <field name="analytic_distribution" widget="analytic_distribution" readonly="1" optional="hide"/>
+                                        <field name="currency_id" invisible="1"/>
+                                        <field name="computed_account_cogs_id" optional="hide" readonly="1"/>
+                                        <field name="computed_account_valuation_id" optional="hide" readonly="1"/>
+                                    </tree>
+                                    </field>
+                            </page>
+                            <page string="Motivo del Ajuste" name="reason">
+                                <field name="reason" placeholder="Explique detalladamente el motivo de este ajuste..." attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_cost_adjustment_search" model="ir.ui.view">
+            <field name="name">cost.adjustment.search</field>
+            <field name="model">cost.adjustment</field>
+            <field name="arch" type="xml">
+                <search string="Buscar Ajustes de Costo">
+                    <field name="name" string="Referencia"/>
+                    <field name="original_invoice_id" string="Factura Original"/>
+                    <field name="date_adjustment"/>
+                    <field name="journal_id"/>
+                    <separator/>
+                    <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
+                    <filter string="Publicado" name="posted" domain="[('state', '=', 'posted')]"/>
+                    <filter string="Cancelado" name="cancel" domain="[('state', '=', 'cancel')]"/>
+                    <group expand="0" string="Agrupar por...">
+                        <filter string="Estado" name="groupby_state" context="{'group_by': 'state'}"/>
+                        <filter string="Diario" name="groupby_journal" context="{'group_by': 'journal_id'}"/>
+                        <filter string="Fecha de Ajuste" name="groupby_date" context="{'group_by': 'date_adjustment'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_cost_adjustment" model="ir.actions.act_window">
+            <field name="name">Ajustes de Costo de Venta</field>
+            <field name="res_model">cost.adjustment</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_cost_adjustment_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Crea un nuevo ajuste de costo de venta.
+                </p><p>
+                    Esta herramienta permite ajustar el costo registrado para productos en facturas de venta ya timbradas.
+                </p>
+            </field>
+        </record>
+
+    </data>
+</odoo>

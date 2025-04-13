@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_cost_adjustment_manager,cost.adjustment.manager,model_cost_adjustment,cost_adjustment.group_cost_adjustment_manager,1,1,1,1
+access_cost_adjustment_line_manager,cost.adjustment.line.manager,model_cost_adjustment_line,cost_adjustment.group_cost_adjustment_manager,1,1,1,1
