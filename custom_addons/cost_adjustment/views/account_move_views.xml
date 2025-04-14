@@ -20,12 +20,12 @@
                           name="cost_adjustments"
                           attrs="{'invisible': [('move_type', '!=', 'out_invoice')]}">
                         <field name="cost_adjustment_ids" readonly="1">
-                            <tree string="Ajustes de Costo Relacionados">
+                            <list string="Ajustes de Costo Relacionados">
                                 <field name="name"/>
                                 <field name="date_adjustment"/>
                                 <field name="reason"/>
                                 <field name="state"/>
-                                </tree>
+                                </list>
                             </field>
                         <p class="oe_grey" attrs="{'invisible': ['|', ('move_type', '!=', 'out_invoice'), ('cost_adjustment_ids', '!=', [])]}">
                             No se han aplicado ajustes de costo a esta factura.
