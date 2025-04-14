@@ -28,7 +28,7 @@
 
 
     'category': 'Accounting/Accounting', 
-    'version': '18.0.1.0.0', # Versión del módulo (Odoo.Major.Minor.Patch.Revision)
+    'version': '18.0.1.2.0', # Versión del módulo (Odoo.Major.Minor.Patch.Revision)
 
     'depends': [
         'base',
@@ -37,6 +37,7 @@
         'sale_management', # Necesario para la trazabilidad via sale.order.line
         'l10n_mx_edi', # Necesario para los campos de CFDI (l10n_mx_edi_cfdi_uuid, edi_state)
         'mail', # Necesario para chatter (mail.thread, mail.activity.mixin)
+        'mrp', #dependencia necesaria para los kits
     ],
 
     # Archivos que siempre se cargan
