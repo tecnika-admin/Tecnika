@@ -16,7 +16,7 @@ class ProductTemplate(models.Model):
     is_kit = fields.Boolean(
         string="Es un Kit (Fantasma)",
         compute='_compute_is_kit',
-        store=True,
+        store=True, # Almacenar para usar en dominios de búsqueda/vistas
         help="Indica si el producto tiene una Lista de Materiales activa de tipo 'Kit (Fantasma)'."
     )
 
@@ -34,17 +34,6 @@ class ProductProduct(models.Model):
     _inherit = 'product.product'
 
     is_kit = fields.Boolean(related='product_tmpl_id.is_kit', store=True)
-
-    # Helper para obtener costo actual del kit (podría ser más complejo si se requiere cálculo dinámico)
-    # Por ahora, asumimos que standard_price del kit se calcula correctamente por Odoo o manualmente.
-    # def _get_kit_current_cost(self, quantity):
-    #     self.ensure_one()
-    #     if not self.is_kit:
-    #         return self.standard_price * quantity
-    #     # Lógica para calcular costo actual sumando componentes si standard_price no es fiable
-    #     # ... (requiere buscar BoM, componentes, sus costos actuales y cantidades) ...
-    #     # Por simplicidad, usamos standard_price por ahora
-    #     return self.standard_price * quantity
 
 
 # ==============================================================================
@@ -110,20 +99,35 @@ class CostAdjustment(models.Model):
 
     # --- Acciones de Botones ---
     def action_post(self):
+        """
+        Valida, crea el asiento contable de ajuste, crea las capas de valoración (SVL)
+        y opcionalmente publica el asiento. Cambia el estado del ajuste a 'Publicado'.
+        La validación de fecha bloqueada la hará el método _post del asiento.
+        Ref: RF04, RF05, RF08
+        """
         self.ensure_one()
         if not self.line_ids:
             raise UserError(_("No se puede publicar un ajuste sin líneas."))
-        self._check_period_lock_date()
+
+        # Ya no llamamos a _check_period_lock_date() aquí
+
+        # Crear Asiento Contable (RF04)
         move = self._create_adjustment_move()
         self.adjustment_move_id = move.id
-        # Crear SVL condicionalmente para Kits
+
+        # Crear Capas de Valoración (SVL) condicionalmente (RF05)
         self._create_stock_valuation_layers_conditionally(move)
+
+        # Publicar Asiento (Opcional) - Aquí se validará la fecha bloqueada
         if self.auto_post_entry:
-            move._post(soft=False)
+            move._post(soft=False) # Lanza UserError si la fecha está bloqueada
+
+        # Cambiar Estado del Ajuste (Solo si _post no lanzó error o si no se auto-publicó)
         self.write({'state': 'posted'})
         return True
 
     def action_cancel(self):
+        # La lógica de reversión en account.move ahora maneja Kits
         moves_to_reverse = self.mapped('adjustment_move_id').filtered(lambda m: m.state == 'posted')
         if moves_to_reverse:
             moves_to_reverse._reverse_moves(cancel=True)
@@ -142,19 +146,8 @@ class CostAdjustment(models.Model):
         return True
 
     # --- Métodos de Ayuda ---
-    def _check_period_lock_date(self):
-        self.ensure_one()
-        move_vals = {
-            'journal_id': self.journal_id.id,
-            'date': self.date_adjustment,
-            'company_id': self.company_id.id,
-        }
-        move_for_check = self.env['account.move'].new(move_vals)
-        try:
-            move_for_check._check_lock_dates()
-        except UserError as e:
-            raise UserError(_("Error en el ajuste {}: {}").format(self.name, e.args[0]))
-        return True
+
+    # ELIMINADO: def _check_period_lock_date(self): ...
 
     def _prepare_adjustment_move_vals(self):
         self.ensure_one()
@@ -182,7 +175,6 @@ class CostAdjustment(models.Model):
 
         for line in self.line_ids:
             line._compute_costs_and_adjustment()
-            # Usar float_is_zero para comparar
             if float_is_zero(line.adjustment_amount, precision_rounding=company_currency.rounding):
                 continue
             line_vals = line._prepare_adjustment_move_lines_vals()
@@ -195,7 +187,6 @@ class CostAdjustment(models.Model):
         move = self.env['account.move'].create(move_vals)
         return move
 
-    # --- Método Principal para Crear SVL (Modificado con lógica condicional) ---
     def _create_stock_valuation_layers_conditionally(self, adjustment_move):
         """
         Crea las capas de valoración (SVL) para cada línea de ajuste.
@@ -210,10 +201,7 @@ class CostAdjustment(models.Model):
         company_currency = self.company_id.currency_id
 
         for line in self.line_ids:
-            # Recalcular por si acaso, especialmente adjustment_amount
             line._compute_costs_and_adjustment()
-
-            # No crear SVL si el ajuste contable es cero
             if float_is_zero(line.adjustment_amount, precision_rounding=company_currency.rounding):
                 continue
 
@@ -222,30 +210,29 @@ class CostAdjustment(models.Model):
                 component_moves = line._find_kit_component_moves()
                 if not component_moves:
                     _logger.warning(f"Kit {line.product_id.name}: No se encontraron movimientos de componentes para el ajuste {self.name}. No se crearán SVLs.")
-                    continue # Saltar a la siguiente línea
+                    continue
 
-                # Buscar SVLs originales de esos movimientos de componentes
                 original_svls = svl_obj.search([('stock_move_id', 'in', component_moves.ids)])
                 actual_component_valuation = abs(sum(original_svls.mapped('value')))
+                # Usamos el costo calculado en la línea (que es el costo total del kit para la cantidad)
+                current_kit_total_cost = line.current_average_cost * line.quantity # Asume current_average_cost es unitario para kit? NO, debe ser el total. Revisar compute.
+                # Recalculemos el costo total actual aquí para asegurar
+                current_kit_total_cost = line.product_id.standard_price * line.quantity # Usar standard_price del kit * cantidad
 
-                # Calcular costo total actual del Kit (usando el campo calculado en la línea)
-                # current_average_cost en la línea guarda el costo unitario/kit actual
-                current_kit_total_cost = line.current_average_cost * line.quantity
-
-                # Convertir a moneda de compañía para comparar
                 actual_comp_val_comp_curr = line.currency_id._convert(
                     actual_component_valuation, company_currency, self.company_id, self.date_adjustment)
                 current_kit_total_cost_comp_curr = line.currency_id._convert(
                     current_kit_total_cost, company_currency, self.company_id, self.date_adjustment)
 
-                # Comparar valoración original de componentes con costo actual del kit
-                if not float_is_zero(current_kit_total_cost_comp_curr - actual_comp_val_comp_curr, precision_rounding=company_currency.rounding):
+                # Comparar usando float_compare para mayor precisión
+                comparison = float_compare(current_kit_total_cost_comp_curr, actual_comp_val_comp_curr, precision_rounding=company_currency.rounding)
+
+                if comparison != 0:
                     # Hay diferencia -> Crear SVLs de ajuste para componentes
                     _logger.info(f"Kit {line.product_id.name}: Valoración original componentes ({actual_comp_val_comp_curr}) difiere del costo actual kit ({current_kit_total_cost_comp_curr}). Creando SVLs de ajuste.")
-                    component_svl_vals = line._prepare_kit_component_svl_vals(adjustment_move, component_moves) # Pasar component_moves
+                    component_svl_vals = line._prepare_kit_component_svl_vals(adjustment_move, component_moves)
                     svl_vals_list.extend(component_svl_vals)
                 else:
-                    # No hay diferencia significativa -> No crear SVLs para componentes
                      _logger.info(f"Kit {line.product_id.name}: Valoración original componentes ({actual_comp_val_comp_curr}) coincide con costo actual kit ({current_kit_total_cost_comp_curr}). No se crearán SVLs de ajuste.")
 
             else:
@@ -255,13 +242,12 @@ class CostAdjustment(models.Model):
                     svl_vals_list.append(standard_svl_vals)
                 else:
                     _logger.warning(f"No se pudo preparar SVL estándar para la línea {line.id} (Ajuste: {self.name})")
-                    # Considerar error si es mandatorio
-                    # raise UserError(_("No se pudo encontrar el movimiento de stock original para el producto estándar {}. No se puede crear la capa de valoración.").format(line.product_id.display_name))
 
         if svl_vals_list:
             svl_obj.create(svl_vals_list)
 
         return True
+
 
 # ==============================================================================
 # Modelo de Línea de Ajuste de Costo (con lógica para Kits)
@@ -274,10 +260,10 @@ class CostAdjustmentLine(models.Model):
     adjustment_id = fields.Many2one('cost.adjustment', string='Ajuste de Costo', required=True, ondelete='cascade')
     original_invoice_line_id = fields.Many2one('account.move.line', string='Línea de Factura Original', required=True, help="Línea específica de la factura original cuyo costo se ajustará.")
     product_id = fields.Many2one('product.product', string='Producto', related='original_invoice_line_id.product_id', store=True, readonly=True)
-    is_kit = fields.Boolean(related='product_id.is_kit', string="Es Kit", store=True, readonly=True) # Store=True para usar en dominios si fuera necesario
+    is_kit = fields.Boolean(related='product_id.is_kit', string="Es Kit", store=True, readonly=True)
     quantity = fields.Float(string='Cantidad Facturada', related='original_invoice_line_id.quantity', store=True, readonly=True)
     original_cost_total = fields.Monetary(string='Costo Original Registrado (Total)', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Costo total registrado originalmente (desde SVL o asiento COGS).")
-    current_average_cost = fields.Monetary(string='Costo Actual (Unitario/Kit)', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Costo estándar/promedio actual del producto o costo calculado actual del kit.")
+    current_average_cost = fields.Monetary(string='Costo Actual (Unitario/Kit)', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Costo estándar/promedio actual del producto o costo unitario actual del kit.") # Aclarado help
     adjustment_amount = fields.Monetary(string='Importe del Ajuste', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Diferencia calculada: (Costo Actual Total) - Costo Original Registrado.")
     analytic_distribution = fields.Json(string='Distribución Analítica', readonly=True, copy=False, help="Distribución analítica heredada de la línea de factura original (si existe).")
     company_id = fields.Many2one('res.company', related='adjustment_id.company_id', store=True, readonly=True)
@@ -316,39 +302,55 @@ class CostAdjustmentLine(models.Model):
             return
 
         # Buscar líneas de asiento COGS para todos los kits de una vez
-        kit_products = self.filtered(lambda l: l.product_id.is_kit).mapped('product_id')
+        kit_lines = self.filtered(lambda l: l.product_id.is_kit and l.original_invoice_line_id)
         cogs_lines_dict = {}
-        if kit_products:
-            # Asumiendo que la cuenta COGS es de tipo 'expense' y está en la categoría
+        if kit_lines:
+            kit_products = kit_lines.mapped('product_id')
             cogs_account_ids = kit_products.mapped('categ_id.property_account_expense_categ_id').ids
-            # Buscar en las facturas originales
-            invoice_ids = self.mapped('original_invoice_line_id.move_id').ids
-            cogs_move_lines = self.env['account.move.line'].search([
-                ('move_id', 'in', invoice_ids),
-                ('product_id', 'in', kit_products.ids),
-                ('account_id', 'in', cogs_account_ids),
-                ('parent_state', '=', 'posted') # Asegurar que sean de asientos publicados
-            ])
-            for ml in cogs_move_lines:
-                key = (ml.move_id.id, ml.product_id.id)
-                if key not in cogs_lines_dict:
-                    cogs_lines_dict[key] = 0.0
-                cogs_lines_dict[key] += ml.debit - ml.credit
+            invoice_ids = kit_lines.mapped('original_invoice_line_id.move_id').ids
+            if invoice_ids and cogs_account_ids: # Solo buscar si hay IDs
+                cogs_move_lines = self.env['account.move.line'].search([
+                    ('move_id', 'in', invoice_ids),
+                    ('product_id', 'in', kit_products.ids),
+                    ('account_id', 'in', cogs_account_ids),
+                    ('parent_state', '=', 'posted')
+                ])
+                for ml in cogs_move_lines:
+                    # Usamos la línea de factura original como clave, ya que puede haber varias líneas del mismo producto en una factura
+                    key = ml.id # Usar el ID de la account.move.line original como clave
+                    if key not in cogs_lines_dict:
+                         cogs_lines_dict[key] = 0.0
+                    # El costo de venta es el débito en la cuenta de gasto
+                    cogs_lines_dict[key] += ml.debit
 
         # Buscar SVLs para todos los productos estándar de una vez
         std_lines = self.filtered(lambda l: not l.product_id.is_kit and l.original_invoice_line_id)
         original_svl_costs = {}
         if std_lines:
-            stock_moves = std_lines._find_original_stock_move() # Llama al método para cada línea, optimizable
-            if stock_moves:
-                svls = self.env['stock.valuation.layer'].search([
-                    ('stock_move_id', 'in', stock_moves.ids),
-                    # ('product_id', 'in', std_lines.mapped('product_id').ids), # Redundante si filtramos por move
+            # Optimización: Buscar todos los moves de una vez
+            sale_line_ids = std_lines.mapped('original_invoice_line_id.sale_line_ids').ids
+            if sale_line_ids:
+                stock_moves = self.env['stock.move'].search([
+                    ('sale_line_id', 'in', sale_line_ids),
+                    ('product_id', 'in', std_lines.mapped('product_id').ids),
                     ('company_id', 'in', std_lines.mapped('company_id').ids),
+                    ('state', '=', 'done'),
+                    ('location_dest_id.usage', '=', 'customer'),
                 ])
-                for svl in svls:
-                    # Guardar costo por stock_move_id (asumiendo 1 svl por move relevante)
-                    original_svl_costs[svl.stock_move_id.id] = abs(svl.value)
+                # Crear un mapeo de aml.id a stock_move.id (asumiendo 1-1 o el más relevante)
+                map_aml_to_move = {
+                    aml.id: moves[0].id
+                    for aml in std_lines if (moves := stock_moves.filtered(lambda m: aml.sale_line_ids & m.sale_line_id and m.product_id == aml.product_id))
+                }
+                move_ids_to_search_svl = list(map_aml_to_move.values())
+
+                if move_ids_to_search_svl:
+                    svls = self.env['stock.valuation.layer'].search([
+                        ('stock_move_id', 'in', move_ids_to_search_svl),
+                        ('company_id', 'in', std_lines.mapped('company_id').ids),
+                    ])
+                    for svl in svls:
+                        original_svl_costs[svl.stock_move_id.id] = abs(svl.value)
 
 
         for line in self:
@@ -364,21 +366,21 @@ class CostAdjustmentLine(models.Model):
 
                 if product.is_kit:
                     # --- Lógica para Kits ---
-                    # 1. Costo Original: Leer del asiento COGS pre-calculado
-                    original_cost = cogs_lines_dict.get((invoice_line.move_id.id, product.id), 0.0)
+                    # 1. Costo Original: Leer del asiento COGS pre-buscado usando el ID de la línea original
+                    original_cost = cogs_lines_dict.get(invoice_line.id, 0.0)
 
-                    # 2. Costo Actual: Usar standard_price del Kit
+                    # 2. Costo Actual: Usar standard_price del Kit (unitario)
                     current_cost_unit = product.standard_price
                     current_cost_total = current_cost_unit * line.quantity
 
                 else:
                     # --- Lógica para Productos Estándar ---
-                    # 1. Costo Original: Leer del SVL pre-calculado
-                    stock_move = line._find_original_stock_move() # Se vuelve a llamar, optimizable
-                    if stock_move:
-                        original_cost = original_svl_costs.get(stock_move.id, 0.0)
+                    # 1. Costo Original: Leer del SVL pre-buscado
+                    move_id = map_aml_to_move.get(invoice_line.id)
+                    if move_id:
+                        original_cost = original_svl_costs.get(move_id, 0.0)
 
-                    # 2. Costo Actual: Leer standard_price
+                    # 2. Costo Actual: Leer standard_price (unitario)
                     current_cost_unit = product.standard_price
                     current_cost_total = current_cost_unit * line.quantity
 
@@ -386,7 +388,7 @@ class CostAdjustmentLine(models.Model):
                 adjustment = current_cost_total - original_cost
 
             line.original_cost_total = company_currency.round(original_cost)
-            line.current_average_cost = company_currency.round(current_cost_unit)
+            line.current_average_cost = company_currency.round(current_cost_unit) # Guardamos costo unitario
             line.adjustment_amount = company_currency.round(adjustment)
 
 
@@ -404,7 +406,7 @@ class CostAdjustmentLine(models.Model):
                  line.computed_account_valuation_id = False
 
     # --- Métodos de Ayuda ---
-    # _find_original_stock_move (sin cambios respecto a v10)
+    # _find_original_stock_move (sin cambios)
     def _find_original_stock_move(self):
         self.ensure_one()
         if not self.original_invoice_line_id or not self.product_id or self.product_id.is_kit:
@@ -424,7 +426,7 @@ class CostAdjustmentLine(models.Model):
              _logger.warning(f"No se encontró stock.move para la línea de factura {aml.id} (Producto Estándar: {self.product_id.name})")
         return stock_moves
 
-    # _find_kit_component_moves (sin cambios respecto a v10)
+    # _find_kit_component_moves (sin cambios)
     def _find_kit_component_moves(self):
         self.ensure_one()
         if not self.original_invoice_line_id or not self.product_id or not self.product_id.is_kit:
@@ -433,7 +435,6 @@ class CostAdjustmentLine(models.Model):
         if not aml.sale_line_ids:
             _logger.warning(f"Línea de factura {aml.id} (Kit: {self.product_id.name}) no tiene líneas de venta asociadas.")
             return self.env['stock.move']
-        # Podríamos necesitar buscar la BoM correcta en la fecha de la venta si cambia con el tiempo
         bom = self.env['mrp.bom']._bom_find(products=self.product_id, bom_type='phantom', company_id=self.company_id.id)[self.product_id]
         if not bom:
              _logger.warning(f"No se encontró LdM tipo Phantom para el Kit {self.product_id.name}.")
@@ -451,7 +452,7 @@ class CostAdjustmentLine(models.Model):
              _logger.warning(f"No se encontraron stock.move de componentes para la línea de factura {aml.id} (Kit: {self.product_id.name})")
         return component_moves
 
-    # _get_adjustment_accounts (sin cambios respecto a v10)
+    # _get_adjustment_accounts (sin cambios)
     def _get_adjustment_accounts(self):
         self.ensure_one()
         if not self.product_id:
@@ -471,7 +472,7 @@ class CostAdjustmentLine(models.Model):
              )
         return acc_cogs, acc_valuation
 
-    # _prepare_adjustment_move_lines_vals (sin cambios respecto a v10)
+    # _prepare_adjustment_move_lines_vals (sin cambios)
     def _prepare_adjustment_move_lines_vals(self):
         self.ensure_one()
         vals_list = []
@@ -503,7 +504,7 @@ class CostAdjustmentLine(models.Model):
         vals_list.append(vals_valuation)
         return vals_list
 
-    # _prepare_standard_product_svl_vals (sin cambios respecto a v10)
+    # _prepare_standard_product_svl_vals (sin cambios)
     def _prepare_standard_product_svl_vals(self, adjustment_move):
          self.ensure_one()
          stock_move = self._find_original_stock_move()
@@ -533,7 +534,7 @@ class CostAdjustmentLine(models.Model):
              'company_id': self.company_id.id,
          }
 
-    # _prepare_kit_component_svl_vals (Modificado para aceptar component_moves)
+    # _prepare_kit_component_svl_vals (sin cambios funcionales, solo recibe component_moves)
     def _prepare_kit_component_svl_vals(self, adjustment_move, component_moves):
         """
         Prepara los valores para crear los SVL de ajuste para los COMPONENTES de un Kit,
@@ -545,16 +546,14 @@ class CostAdjustmentLine(models.Model):
         company_currency = self.company_id.currency_id
         if float_is_zero(kit_adjustment_total, precision_rounding=company_currency.rounding):
             return []
-        if not component_moves: # Doble chequeo
+        if not component_moves:
             return []
 
-        # Calcular costo total actual de los componentes movidos para la distribución
         total_current_component_cost = 0
         component_data = []
         for move in component_moves:
-            # Usar costo estándar actual del componente
-            # Asegurar que move.product_qty tenga la cantidad correcta
-            comp_cost = move.product_id.standard_price * move.quantity_done # Usar quantity_done? o product_qty? Verificar cual es la cantidad real movida
+            # Usar quantity_done que representa la cantidad real movida
+            comp_cost = move.product_id.standard_price * move.quantity_done
             total_current_component_cost += comp_cost
             component_data.append({'move': move, 'current_cost': comp_cost})
 
@@ -562,12 +561,11 @@ class CostAdjustmentLine(models.Model):
             _logger.warning(f"El costo total actual de los componentes para el Kit {self.product_id.name} (Ajuste: {self.adjustment_id.name}) es cero. No se puede distribuir el ajuste.")
             return []
 
-        # Preparar SVL para cada componente
         svl_vals_list = []
         kit_adjustment_total_comp_curr = self.currency_id._convert(
              kit_adjustment_total, company_currency, self.company_id, self.adjustment_id.date_adjustment
          )
-        accumulated_adjustment = 0.0 # Para ajustar redondeos en la última línea
+        accumulated_adjustment = 0.0
 
         for i, data in enumerate(component_data):
             move = data['move']
@@ -575,7 +573,6 @@ class CostAdjustmentLine(models.Model):
             ratio = comp_cost / total_current_component_cost if total_current_component_cost else 0
             comp_adjustment_value = company_currency.round(kit_adjustment_total_comp_curr * ratio)
 
-            # Ajustar la última línea para que la suma total cuadre
             if i == len(component_data) - 1:
                 comp_adjustment_value = kit_adjustment_total_comp_curr - accumulated_adjustment
 
@@ -603,7 +600,6 @@ class CostAdjustmentLine(models.Model):
             }
             svl_vals_list.append(svl_vals)
 
-        # Log de verificación de suma (opcional)
         final_sum = sum(v['value'] for v in svl_vals_list)
         if not float_is_zero(final_sum - kit_adjustment_total_comp_curr, precision_rounding=company_currency.rounding):
             _logger.error(f"Error de redondeo en distribución SVL para Kit {self.product_id.name} (Ajuste: {self.adjustment_id.name}). Total Distribuido: {final_sum}, Total Esperado: {kit_adjustment_total_comp_curr}")
@@ -631,20 +627,22 @@ class AccountMove(models.Model):
         Ref: RF09 (Modificado para Kits v2)
         """
         default_values_list = default_values_list or [{} for _ in self]
-        reversed_moves = super(AccountMove, self)._reverse_moves(default_values_list, cancel=cancel)
+        # Asegurar que cancel se pasa correctamente si es True
+        reversed_moves = super(AccountMove, self)._reverse_moves(default_values_list=default_values_list, cancel=cancel)
+
 
         svl_obj = self.env['stock.valuation.layer']
         adjustment_obj = self.env['cost.adjustment']
         svl_to_create = []
         adjustments_to_cancel = adjustment_obj
 
-        # Iterar sobre los asientos originales que se están reversando (self)
-        # y encontrar su correspondiente asiento reverso en reversed_moves
         map_original_to_reversed = {rev.reversed_entry_id.id: rev for rev in reversed_moves if rev.reversed_entry_id}
 
         for move in self.filtered(lambda m: m.cost_adjustment_origin_id):
             adjustment = move.cost_adjustment_origin_id
-            adjustments_to_cancel |= adjustment
+            # Solo intentar cancelar ajustes que estén actualmente publicados
+            if adjustment.state == 'posted':
+                adjustments_to_cancel |= adjustment
 
             reversed_move = map_original_to_reversed.get(move.id)
             if not reversed_move:
@@ -655,14 +653,12 @@ class AccountMove(models.Model):
             original_svls = svl_obj.search([('account_move_id', '=', move.id)])
 
             for svl in original_svls:
-                # Preparar SVL inverso
                 description = _("Reversión Ajuste Costo - Ref Orig: {} - Ref Rev: {}").format(
                     move.name,
                     reversed_move.name
                 )
                 value_in_company_currency = -svl.value
 
-                # Validar que el valor no sea cero antes de crear SVL inverso
                 if float_is_zero(value_in_company_currency, precision_rounding=svl.company_id.currency_id.rounding):
                     continue
 
@@ -685,8 +681,9 @@ class AccountMove(models.Model):
         if svl_to_create:
             svl_obj.create(svl_to_create)
 
+        # Cancelar los registros de ajuste originales que estaban posteados
         if adjustments_to_cancel:
-            adjustments_to_cancel.filtered(lambda adj: adj.state == 'posted').write({'state': 'cancel'})
+            adjustments_to_cancel.write({'state': 'cancel'})
 
         return reversed_moves
 
