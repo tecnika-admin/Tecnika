@@ -36,7 +36,10 @@
                         </div>
                         <group>
                             <group>
-                                <field name="original_invoice_id" options="{'no_create': True, 'no_open': False}" readonly="state != 'draft'"/>
+                                <field name="original_invoice_id"
+                                       options="{'no_create': True, 'no_open': False}"
+                                       readonly="state != 'draft'"
+                                       domain="[('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('l10n_mx_edi_cfdi_uuid', '!=', False)]"/>
                                 <field name="journal_id" options="{'no_create': True}" readonly="state != 'draft'"/>
                                 <field name="company_id" groups="base.group_multi_company"/>
                                 <field name="currency_id" invisible="1"/>
