@@ -526,12 +526,12 @@ class CostAdjustmentLine(models.Model):
         # Usar la moneda de la compañía para comparar con cero
         company_currency = self.company_id.currency_id
         if company_currency.is_zero(self.adjustment_amount):
-            return [] # No generar líneas si el ajuste es cero
+             return [] # No generar líneas si el ajuste es cero
 
         amount = self.adjustment_amount
         acc_cogs, acc_valuation = self._get_adjustment_accounts()
         partner_id = self.adjustment_id.original_invoice_id.partner_id.id
-        name = _(f"Ajuste Costo: {self.product_id.display_name}")
+        name = _("Ajuste Costo: {}").format(self.product_id.display_name)
 
         # Determinar débito/crédito
         debit_cogs, credit_cogs, debit_val, credit_val = 0.0, 0.0, 0.0, 0.0
