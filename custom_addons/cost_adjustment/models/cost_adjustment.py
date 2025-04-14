@@ -85,7 +85,6 @@ class CostAdjustment(models.Model):
     company_id = fields.Many2one(
         'res.company', string='Compañía', related='journal_id.company_id', store=True, readonly=True
     )
-    # Modificado: related ahora usa company_id como fallback si journal_id no tiene moneda
     currency_id = fields.Many2one(
         'res.currency', string='Moneda', compute='_compute_currency_id', store=True, readonly=True
     )
@@ -102,10 +101,9 @@ class CostAdjustment(models.Model):
         for vals in vals_list:
             if vals.get('name', _('Nuevo')) == _('Nuevo'):
                 vals['name'] = self.env['ir.sequence'].next_by_code('cost.adjustment') or _('Nuevo')
-        # Asegurar que la compañía esté presente para calcular la moneda si es necesario
-        if 'journal_id' in vals and not vals.get('company_id'):
-             journal = self.env['account.journal'].browse(vals['journal_id'])
-             vals['company_id'] = journal.company_id.id
+            if 'journal_id' in vals and not vals.get('company_id'):
+                 journal = self.env['account.journal'].browse(vals['journal_id'])
+                 vals['company_id'] = journal.company_id.id
         return super(CostAdjustment, self).create(vals_list)
 
     # --- Acciones de Botones ---
@@ -113,18 +111,11 @@ class CostAdjustment(models.Model):
         self.ensure_one()
         if not self.line_ids:
             raise UserError(_("No se puede publicar un ajuste sin líneas."))
-
-        # Crear Asiento Contable (RF04) - La preparación ahora usa moneda de compañía si es necesario
         move = self._create_adjustment_move()
         self.adjustment_move_id = move.id
-
-        # Crear Capas de Valoración (SVL) condicionalmente (RF05)
         self._create_stock_valuation_layers_conditionally(move)
-
-        # Publicar Asiento (Opcional) - Aquí se validará la fecha bloqueada
         if self.auto_post_entry:
-            move._post(soft=False) # Lanza UserError si la fecha está bloqueada
-
+            move._post(soft=False)
         self.write({'state': 'posted'})
         return True
 
@@ -150,13 +141,10 @@ class CostAdjustment(models.Model):
     def _prepare_adjustment_move_vals(self):
         """ Prepara los valores para crear el asiento contable de ajuste. """
         self.ensure_one()
-        # Validar diario y obtener moneda (diario o compañía)
         if not self.journal_id:
             raise UserError(_("Debe seleccionar un Diario Contable."))
-        # La moneda ahora se calcula con compute y tiene fallback a la compañía
         move_currency = self.currency_id
         if not move_currency:
-             # Esto no debería ocurrir si company_id está bien configurada
              raise UserError(_("No se pudo determinar la moneda. Verifique la configuración del diario ({}) y la compañía ({}).").format(self.journal_id.name, self.company_id.name))
 
         ref = _("Ajuste Costo Fact: {} - Ajuste: {} - Motivo: {}").format(
@@ -171,7 +159,7 @@ class CostAdjustment(models.Model):
             'move_type': 'entry',
             'cost_adjustment_origin_id': self.id,
             'company_id': self.company_id.id,
-            'currency_id': move_currency.id, # Usar la moneda determinada
+            'currency_id': move_currency.id,
             'line_ids': [],
         }
 
@@ -180,15 +168,12 @@ class CostAdjustment(models.Model):
         self.ensure_one()
         move_vals = self._prepare_adjustment_move_vals()
         move_lines_vals = []
-        # Usar la moneda determinada para el asiento para las comparaciones
         move_currency = self.env['res.currency'].browse(move_vals['currency_id'])
 
         for line in self.line_ids:
             line._compute_costs_and_adjustment()
-            # Usar la moneda del asiento para la comparación con cero
             if float_is_zero(line.adjustment_amount, precision_rounding=move_currency.rounding):
                 continue
-            # Pasar la moneda del asiento a la preparación de líneas
             line_vals = line._prepare_adjustment_move_lines_vals(move_currency)
             move_lines_vals.extend(line_vals)
 
@@ -204,16 +189,13 @@ class CostAdjustment(models.Model):
         self.ensure_one()
         svl_obj = self.env['stock.valuation.layer']
         svl_vals_list = []
-        company_currency = self.company_id.currency_id # SVL siempre usa moneda de compañía
+        company_currency = self.company_id.currency_id
 
         for line in self.line_ids:
             line._compute_costs_and_adjustment()
-            # El ajuste contable puede estar en otra moneda, pero el SVL va en moneda de compañía
-            # Convertir adjustment_amount a moneda de compañía para la lógica SVL
             adjustment_amount_comp_curr = line.currency_id._convert(
                 line.adjustment_amount, company_currency, line.company_id, line.adjustment_id.date_adjustment
             )
-
             if float_is_zero(adjustment_amount_comp_curr, precision_rounding=company_currency.rounding):
                 continue
 
@@ -225,10 +207,7 @@ class CostAdjustment(models.Model):
                     continue
 
                 original_svls = svl_obj.search([('stock_move_id', 'in', component_moves.ids)])
-                # Valoración original ya está en moneda de compañía
                 actual_component_valuation = abs(sum(original_svls.mapped('value')))
-
-                # Costo actual total del kit en moneda de compañía
                 current_kit_total_cost = line.product_id.standard_price * line.quantity
                 current_kit_total_cost_comp_curr = line.currency_id._convert(
                     current_kit_total_cost, company_currency, line.company_id, line.adjustment_id.date_adjustment)
@@ -237,14 +216,12 @@ class CostAdjustment(models.Model):
 
                 if comparison != 0:
                     _logger.info(f"Kit {line.product_id.name}: Valoración original componentes ({actual_component_valuation}) difiere del costo actual kit ({current_kit_total_cost_comp_curr}). Creando SVLs de ajuste.")
-                    # Pasar el adjustment_amount en moneda de compañía a la preparación
                     component_svl_vals = line._prepare_kit_component_svl_vals(adjustment_move, component_moves, adjustment_amount_comp_curr)
                     svl_vals_list.extend(component_svl_vals)
                 else:
                      _logger.info(f"Kit {line.product_id.name}: Valoración original componentes ({actual_component_valuation}) coincide con costo actual kit ({current_kit_total_cost_comp_curr}). No se crearán SVLs de ajuste.")
             else:
                 # --- Lógica para Productos Estándar ---
-                # Pasar el adjustment_amount en moneda de compañía a la preparación
                 standard_svl_vals = line._prepare_standard_product_svl_vals(adjustment_move, adjustment_amount_comp_curr)
                 if standard_svl_vals:
                     svl_vals_list.append(standard_svl_vals)
@@ -274,7 +251,6 @@ class CostAdjustmentLine(models.Model):
     adjustment_amount = fields.Monetary(string='Importe del Ajuste', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Diferencia calculada: (Costo Actual Total) - Costo Original Registrado.")
     analytic_distribution = fields.Json(string='Distribución Analítica', readonly=True, copy=False, help="Distribución analítica heredada de la línea de factura original (si existe).")
     company_id = fields.Many2one('res.company', related='adjustment_id.company_id', store=True, readonly=True)
-    # currency_id ahora viene del ajuste padre (que tiene fallback a compañía)
     currency_id = fields.Many2one('res.currency', related='adjustment_id.currency_id', store=True, readonly=True)
     computed_account_cogs_id = fields.Many2one('account.account', string='Cuenta COGS/Gasto (Calculada)', compute='_compute_accounts', store=False, readonly=True)
     computed_account_valuation_id = fields.Many2one('account.account', string='Cuenta Valoración/Salida (Calculada)', compute='_compute_accounts', store=False, readonly=True)
@@ -298,8 +274,6 @@ class CostAdjustmentLine(models.Model):
     @api.depends('original_invoice_line_id', 'product_id', 'quantity', 'adjustment_id.date_adjustment', 'currency_id')
     def _compute_costs_and_adjustment(self):
         # (Código de cálculo de costos - optimizado)
-        # ... (código similar a v12, asegurando usar self.currency_id para redondeos si es necesario) ...
-        # Pre-cargar datos necesarios para eficiencia
         invoice_line_ids = self.mapped('original_invoice_line_id')
         if not invoice_line_ids:
             for line in self:
@@ -312,13 +286,12 @@ class CostAdjustmentLine(models.Model):
         cogs_lines_dict = {}
         if kit_lines:
             kit_products = kit_lines.mapped('product_id')
-            # Obtener cuentas COGS de manera segura
             cogs_account_ids = []
             for prod in kit_products:
                 accounts = prod.with_company(prod.company_id)._get_product_accounts()
                 if accounts.get('expense'):
                     cogs_account_ids.append(accounts['expense'].id)
-            cogs_account_ids = list(set(cogs_account_ids)) # Unificar
+            cogs_account_ids = list(set(cogs_account_ids))
 
             invoice_ids = kit_lines.mapped('original_invoice_line_id.move_id').ids
             if invoice_ids and cogs_account_ids:
@@ -329,8 +302,9 @@ class CostAdjustmentLine(models.Model):
                     ('parent_state', '=', 'posted')
                 ])
                 for ml in cogs_move_lines:
-                    # Usar ID de la línea original como clave
-                    key = ml.id
+                    original_aml = kit_lines.original_invoice_line_id.filtered(lambda aml: aml.id == ml.id)
+                    if not original_aml: continue
+                    key = original_aml.id
                     if key not in cogs_lines_dict:
                          cogs_lines_dict[key] = 0.0
                     cogs_lines_dict[key] += ml.debit
@@ -368,7 +342,7 @@ class CostAdjustmentLine(models.Model):
             adjustment = 0.0
             product = line.product_id
             invoice_line = line.original_invoice_line_id
-            line_currency = line.currency_id or line.company_id.currency_id # Usar moneda del ajuste/compañía
+            line_currency = line.currency_id or line.company_id.currency_id
 
             if invoice_line and product and line_currency:
                 current_cost_unit = product.standard_price
@@ -381,7 +355,6 @@ class CostAdjustmentLine(models.Model):
                     if move_id:
                         original_cost = original_svl_costs.get(move_id, 0.0)
 
-                # Convertir original_cost a la moneda de la línea si es necesario (asumiendo que COGS/SVL está en moneda compañía)
                 company_currency = line.company_id.currency_id
                 if company_currency != line_currency:
                      original_cost = company_currency._convert(original_cost, line_currency, line.company_id, line.adjustment_id.date_adjustment)
@@ -474,48 +447,39 @@ class CostAdjustmentLine(models.Model):
              )
         return acc_cogs, acc_valuation
 
-    # Modificado para aceptar moneda del asiento
     def _prepare_adjustment_move_lines_vals(self, move_currency):
-        """ Prepara las DOS líneas del asiento contable. """
+        # (Sin cambios)
         self.ensure_one()
         vals_list = []
-        # Usar la moneda del asiento para la comparación y los valores
         if float_is_zero(self.adjustment_amount, precision_rounding=move_currency.rounding):
              return []
-        # El amount ya está en la moneda correcta (calculado por _compute_costs_and_adjustment)
         amount = self.currency_id._convert(self.adjustment_amount, move_currency, self.company_id, self.adjustment_id.date_adjustment)
-
         acc_cogs, acc_valuation = self._get_adjustment_accounts()
         partner_id = self.adjustment_id.original_invoice_id.partner_id.id
         name = _("Ajuste Costo: {}").format(self.product_id.display_name)
         debit_cogs, credit_cogs, debit_val, credit_val = 0.0, 0.0, 0.0, 0.0
-
         if float_compare(amount, 0.0, precision_rounding=move_currency.rounding) > 0:
             debit_cogs = amount
             credit_val = amount
         else:
             credit_cogs = abs(amount)
             debit_val = abs(amount)
-
         vals_cogs = {
             'name': name, 'account_id': acc_cogs.id, 'debit': debit_cogs, 'credit': credit_cogs,
             'analytic_distribution': self.analytic_distribution or False, 'partner_id': partner_id,
-            'product_id': self.product_id.id, 'quantity': self.quantity,
-            'currency_id': move_currency.id, # Moneda del asiento
+            'product_id': self.product_id.id, 'quantity': self.quantity, 'currency_id': move_currency.id,
         }
         vals_list.append(vals_cogs)
         vals_valuation = {
             'name': name, 'account_id': acc_valuation.id, 'debit': debit_val, 'credit': credit_val,
             'analytic_distribution': False, 'partner_id': partner_id,
-            'product_id': self.product_id.id, 'quantity': self.quantity,
-            'currency_id': move_currency.id, # Moneda del asiento
+            'product_id': self.product_id.id, 'quantity': self.quantity, 'currency_id': move_currency.id,
         }
         vals_list.append(vals_valuation)
         return vals_list
 
-    # Modificado para aceptar adjustment_amount en moneda de compañía
     def _prepare_standard_product_svl_vals(self, adjustment_move, adjustment_amount_comp_curr):
-         """ Prepara los valores para crear el SVL de ajuste para un producto estándar. """
+         # (Sin cambios)
          self.ensure_one()
          stock_move = self._find_original_stock_move()
          if not stock_move:
@@ -525,9 +489,7 @@ class CostAdjustmentLine(models.Model):
              self.adjustment_id.original_invoice_id.name,
              self.adjustment_id.name
          )
-         # El valor ya viene en moneda de compañía
          value_in_company_currency = adjustment_amount_comp_curr
-
          return {
              'create_date': self.adjustment_id.date_adjustment,
              'stock_move_id': stock_move.id,
@@ -543,11 +505,10 @@ class CostAdjustmentLine(models.Model):
              'company_id': self.company_id.id,
          }
 
-    # Modificado para aceptar adjustment_amount en moneda de compañía
+    # Corregido uso de quantity_done por quantity (según indicación del usuario)
     def _prepare_kit_component_svl_vals(self, adjustment_move, component_moves, kit_adjustment_total_comp_curr):
         """
         Prepara los valores para crear los SVL de ajuste para los COMPONENTES de un Kit.
-        Recibe los component_moves y el ajuste total ya en moneda de compañía.
         """
         self.ensure_one()
         company_currency = self.company_id.currency_id
@@ -559,8 +520,15 @@ class CostAdjustmentLine(models.Model):
         total_current_component_cost_comp_curr = 0
         component_data = []
         for move in component_moves:
-            # Costo en moneda de compañía
-            comp_cost = move.product_id.with_company(self.company_id).standard_price * move.quantity_done
+            # Corrección: Usar 'quantity' según la indicación del usuario.
+            # ¡¡PRECAUCIÓN!! Verificar que 'move.quantity' realmente contenga la cantidad procesada en su instancia.
+            # El campo estándar para cantidad procesada en stock.move es 'quantity_done'.
+            # El campo estándar para demanda inicial es 'product_uom_qty'.
+            quantity_moved = move.quantity # <--- CAMBIO REALIZADO AQUÍ
+            if float_is_zero(quantity_moved, precision_digits=self.env['decimal.precision'].precision_get('Product Unit of Measure')):
+                 continue
+
+            comp_cost = move.product_id.with_company(self.company_id).standard_price * quantity_moved
             total_current_component_cost_comp_curr += comp_cost
             component_data.append({'move': move, 'current_cost_comp_curr': comp_cost})
 
@@ -577,7 +545,7 @@ class CostAdjustmentLine(models.Model):
             ratio = comp_cost_comp_curr / total_current_component_cost_comp_curr if total_current_component_cost_comp_curr else 0
             comp_adjustment_value = company_currency.round(kit_adjustment_total_comp_curr * ratio)
 
-            if i == len(component_data) - 1:
+            if len(component_data) > 1 and i == len(component_data) - 1:
                 comp_adjustment_value = kit_adjustment_total_comp_curr - accumulated_adjustment
 
             if company_currency.is_zero(comp_adjustment_value):
@@ -595,7 +563,7 @@ class CostAdjustmentLine(models.Model):
                 'quantity': 0,
                 'uom_id': move.product_uom.id,
                 'unit_cost': 0,
-                'value': comp_adjustment_value, # Valor en moneda compañía
+                'value': comp_adjustment_value,
                 'remaining_qty': 0,
                 'remaining_value': comp_adjustment_value,
                 'description': description,
@@ -607,6 +575,11 @@ class CostAdjustmentLine(models.Model):
         final_sum = sum(v['value'] for v in svl_vals_list)
         if not float_is_zero(final_sum - kit_adjustment_total_comp_curr, precision_rounding=company_currency.rounding):
             _logger.error(f"Error de redondeo en distribución SVL para Kit {self.product_id.name} (Ajuste: {self.adjustment_id.name}). Total Distribuido: {final_sum}, Total Esperado: {kit_adjustment_total_comp_curr}")
+            diff = kit_adjustment_total_comp_curr - final_sum
+            if svl_vals_list and abs(diff) < company_currency.rounding:
+                 svl_vals_list[-1]['value'] += diff
+                 svl_vals_list[-1]['remaining_value'] += diff
+                 _logger.warning(f"Ajuste de redondeo aplicado a la última línea SVL: {diff}")
 
         return svl_vals_list
 
