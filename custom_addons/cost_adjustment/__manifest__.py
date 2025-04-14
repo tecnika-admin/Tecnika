@@ -41,9 +41,9 @@
 
     # Archivos que siempre se cargan
     'data': [
-        # 1. Seguridad (permisos y grupos)
-        'security/ir.model.access.csv',
-        'data/cost_adjustment_groups.xml', # Carga el grupo antes que las vistas/menús que lo usan
+        # 1. Seguridad (primero definir grupos, luego usarlos en permisos)
+        'data/cost_adjustment_groups.xml', # <--- MOVIDO AQUÍ (Define el grupo)
+        'security/ir.model.access.csv',    # <--- MOVIDO AQUÍ (Usa el grupo)
         # 2. Datos Iniciales (secuencias, etc.)
         'data/ir_sequence_data.xml',
         # 'data/cost_adjustment_journal_data.xml', # Descomentar si se crea el diario vía XML
