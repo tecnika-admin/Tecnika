@@ -15,7 +15,7 @@
     """,  # Descripción Larga
 
     'author': "Jesús Adrián Garza Zavala", 
-    'website': "https://www.yourcompany.com", 
+    'website': "https://www.tecnika.com", 
 
 
     'category': 'Accounting/Reporting',
@@ -29,7 +29,7 @@
     'data': [
         'security/security.xml', # Definición de grupos de seguridad
         'security/ir.model.access.csv', # Permisos de acceso a modelos
-        'wizard/commission_report_wizard_view.xml', # Vista del wizard
+        'wizards/commission_report_wizard_view.xml', # Vista del wizard
         'report/report_action.xml', # Acción del reporte XLSX
         'views/menu.xml', # Definición del menú
     ],
