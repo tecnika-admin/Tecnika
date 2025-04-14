@@ -4,7 +4,7 @@
 
         <menuitem id="menu_cost_adjustment_sub"
                   name="Ajustes de Costo de Venta"
-                  parent="account.menu_finance_entries_accounting"
+                  parent="account.menu_finance_entries"
                   action="action_cost_adjustment"
                   sequence="100"
                   groups="cost_adjustment.group_cost_adjustment_manager"/>
