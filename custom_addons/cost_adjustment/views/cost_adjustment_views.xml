@@ -60,7 +60,7 @@
                                                domain="[('move_id', '=', parent.original_invoice_id), ('display_type', '=', 'product'), '|', ('product_id.valuation', '=', 'real_time'), ('product_id.is_kit', '=', True)]"
                                                context="{'default_move_id': parent.original_invoice_id}"/>
                                         <field name="product_id" readonly="1" force_save="1"/>
-                                        <field name="is_kit" readonly="1" optional="show"/>
+                                        <field name="is_kit" readonly="1" optional="show"/> 
                                         <field name="quantity" readonly="1" force_save="1"/>
                                         <field name="original_cost_total" readonly="1"/>
                                         <field name="current_average_cost" readonly="1"/>
