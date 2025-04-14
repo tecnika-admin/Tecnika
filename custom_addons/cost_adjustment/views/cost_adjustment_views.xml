@@ -2,7 +2,8 @@
 <odoo>
     <data>
 
-        <record id="view_cost_adjustment_tree" model="ir.ui.view"> <field name="name">cost.adjustment.list</field>
+        <record id="view_cost_adjustment_tree" model="ir.ui.view">
+            <field name="name">cost.adjustment.list</field>
             <field name="model">cost.adjustment</field>
             <field name="arch" type="xml">
                 <list string="Ajustes de Costo" decoration-info="state=='draft'" decoration-muted="state=='cancel'">
@@ -12,7 +13,8 @@
                     <field name="journal_id"/>
                     <field name="company_id" groups="base.group_multi_company"/>
                     <field name="state" widget="badge" decoration-success="state=='posted'" decoration-info="state=='draft'" decoration-muted="state=='cancel'"/>
-                </list> </field>
+                </list>
+            </field>
         </record>
 
         <record id="view_cost_adjustment_form" model="ir.ui.view">
@@ -21,9 +23,9 @@
             <field name="arch" type="xml">
                 <form string="Ajuste de Costo">
                     <header>
-                        <button name="action_post" type="object" string="Publicar" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
-                        <button name="action_cancel" type="object" string="Cancelar" attrs="{'invisible': [('state', 'not in', ['draft', 'posted'])]}"/>
-                        <button name="action_draft" type="object" string="Reestablecer a Borrador" attrs="{'invisible': [('state', '!=', 'cancel')]}"/>
+                        <button name="action_post" type="object" string="Publicar" class="oe_highlight" invisible="state != 'draft'"/>
+                        <button name="action_cancel" type="object" string="Cancelar" invisible="state not in ['draft', 'posted']"/>
+                        <button name="action_draft" type="object" string="Reestablecer a Borrador" invisible="state != 'cancel'"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
                     </header>
                     <sheet>
@@ -34,19 +36,20 @@
                         </div>
                         <group>
                             <group>
-                                <field name="original_invoice_id" options="{'no_create': True, 'no_open': False}" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
-                                <field name="journal_id" options="{'no_create': True}" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                <field name="original_invoice_id" options="{'no_create': True, 'no_open': False}" readonly="state != 'draft'"/>
+                                <field name="journal_id" options="{'no_create': True}" readonly="state != 'draft'"/>
                                 <field name="company_id" groups="base.group_multi_company"/>
-                                <field name="currency_id" invisible="1"/> </group>
+                                <field name="currency_id" invisible="1"/>
+                            </group>
                             <group>
-                                <field name="date_adjustment" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
-                                <field name="auto_post_entry" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                <field name="date_adjustment" readonly="state != 'draft'"/>
+                                <field name="auto_post_entry" readonly="state != 'draft'"/>
                                 <field name="adjustment_move_id" readonly="1"/>
                             </group>
                         </group>
                         <notebook>
                             <page string="Líneas de Ajuste" name="adjustment_lines">
-                                <field name="line_ids" attrs="{'readonly': [('state', '!=', 'draft')]}">
+                                <field name="line_ids" readonly="state != 'draft'">
                                     <list string="Líneas de Ajuste" editable="bottom">
                                         <field name="original_invoice_line_id"
                                                required="1"
@@ -62,10 +65,11 @@
                                         <field name="currency_id" invisible="1"/>
                                         <field name="computed_account_cogs_id" optional="hide" readonly="1"/>
                                         <field name="computed_account_valuation_id" optional="hide" readonly="1"/>
-                                    </list> </field>
+                                    </list>
+                                </field>
                             </page>
                             <page string="Motivo del Ajuste" name="reason">
-                                <field name="reason" placeholder="Explique detalladamente el motivo de este ajuste..." attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                <field name="reason" placeholder="Explique detalladamente el motivo de este ajuste..." readonly="state != 'draft'"/>
                             </page>
                         </notebook>
                     </sheet>
@@ -82,7 +86,7 @@
             <field name="name">cost.adjustment.search</field>
             <field name="model">cost.adjustment</field>
              <field name="arch" type="xml">
-                 <search string="Buscar Ajustes de Costo">
+                <search string="Buscar Ajustes de Costo">
                     <field name="name" string="Referencia"/>
                     <field name="original_invoice_id" string="Factura Original"/>
                     <field name="date_adjustment"/>
@@ -103,7 +107,8 @@
         <record id="action_cost_adjustment" model="ir.actions.act_window">
             <field name="name">Ajustes de Costo de Venta</field>
             <field name="res_model">cost.adjustment</field>
-            <field name="view_mode">list,form</field> <field name="search_view_id" ref="view_cost_adjustment_search"/>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="view_cost_adjustment_search"/>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Crea un nuevo ajuste de costo de venta.

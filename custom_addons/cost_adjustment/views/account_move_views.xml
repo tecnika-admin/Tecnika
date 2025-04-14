@@ -11,23 +11,23 @@
                 <xpath expr="//field[@name='ref']" position="after">
                     <field name="cost_adjustment_origin_id"
                            readonly="1"
-                           attrs="{'invisible': [('cost_adjustment_origin_id', '=', False)]}"
+                           invisible="cost_adjustment_origin_id == False"
                            options="{'no_create': True, 'no_open': True}"/>
                 </xpath>
 
                 <xpath expr="//notebook" position="inside">
-                    <page string="Ajustes de Costo"
+                     <page string="Ajustes de Costo"
                           name="cost_adjustments"
-                          attrs="{'invisible': [('move_type', '!=', 'out_invoice')]}">
+                          invisible="move_type != 'out_invoice'">
                         <field name="cost_adjustment_ids" readonly="1">
-                            <list string="Ajustes de Costo Relacionados">
+                             <list string="Ajustes de Costo Relacionados">
                                 <field name="name"/>
                                 <field name="date_adjustment"/>
                                 <field name="reason"/>
                                 <field name="state"/>
-                                </list>
-                            </field>
-                        <p class="oe_grey" attrs="{'invisible': ['|', ('move_type', '!=', 'out_invoice'), ('cost_adjustment_ids', '!=', [])]}">
+                             </list>
+                        </field>
+                         <p class="oe_grey" invisible="(move_type != 'out_invoice') or (cost_adjustment_ids != [])">
                             No se han aplicado ajustes de costo a esta factura.
                         </p>
                     </page>
