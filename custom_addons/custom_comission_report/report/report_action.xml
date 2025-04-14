@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="action_report_commission_xlsx" model="ir.actions.report">
+            <field name="name">Reporte Comisiones (XLSX)</field> <field name="model">commission.report.wizard</field> <field name="report_type">xlsx</field>
+            <field name="report_name">custom_commission_report.report_commission_xlsx_template</field>
+            <field name="report_file">custom_commission_report.report_commission_xlsx_template</field>
+            <field name="binding_model_id" ref="model_commission_report_wizard"/>
+             <field name="attachment_use" eval="False"/>
+             </record>
+    </data>
+</odoo>
