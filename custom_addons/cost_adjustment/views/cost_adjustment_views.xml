@@ -61,8 +61,10 @@
                                                context="{'default_move_id': parent.original_invoice_id}"/>
                                         <field name="product_id" readonly="1" force_save="1"/>
                                         <field name="is_storable_product" invisible="1"/>
-                                        <span class="fa fa-exclamation-triangle text-warning" title="Producto configurado como No Almacenable/Consumible. El ajuste afectará directamente la cuenta de valoración de inventario." invisible="is_storable_product == True"/>
-                                        <field name="is_kit" readonly="1" optional="show"/>
+                                        <button name="action_open_product_form" type="object" icon="fa-exclamation-triangle text-warning"
+                                                title="Producto configurado como No Almacenable/Consumible. El ajuste afectará directamente la cuenta de valoración de inventario."
+                                                invisible="is_storable_product == True"
+                                                class="btn btn-link oe_inline p-0" tabindex="-1"/> <field name="is_kit" readonly="1" optional="show"/>
                                         <field name="quantity" readonly="1" force_save="1"/>
                                         <field name="original_cost_total" readonly="1"/>
                                         <field name="current_average_cost" readonly="1"/>
