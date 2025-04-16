@@ -18,33 +18,33 @@ class PurchaseRequisitionLine(models.Model):
 
     # --- Nuevos Campos ---
     qty_ordered_calc = fields.Float(
-        string="Ordenado",
+        string="Cantidad Ordenada (Calculada)",
         compute='_compute_qty_ordered_calc',
         store=True,
         digits='Product Unit of Measure',
         help="Cantidad total de este producto ordenada en Órdenes de Compra confirmadas relacionadas con este acuerdo."
     )
     qty_fab = fields.Float(
-        string="Fabricación",
+        string="En Fabricación",
         compute='_compute_qty_fab',
         store=True,
         digits='Product Unit of Measure',
         help="Cantidad calculada que aún está en proceso de fabricación (Ordenada - Otras Etapas)."
     )
     qty_almmarc = fields.Float(
-        string="Marca",
+        string="Almacén Marca",
         digits='Product Unit of Measure',
         copy=False,
         help="Cantidad actualmente en el almacén de la marca."
     )
     qty_almmay = fields.Float(
-        string="Mayorista",
+        string="Almacén Mayorista",
         digits='Product Unit of Measure',
         copy=False,
         help="Cantidad actualmente en el almacén del mayorista."
     )
     qty_almtec = fields.Float(
-        string="Tecnika",
+        string="Almacén Tecnika",
         compute='_compute_qty_almtec',
         store=True,
         digits='Product Unit of Measure',
@@ -83,7 +83,6 @@ class PurchaseRequisitionLine(models.Model):
                         ordered_val = grouped_data[0].get('product_qty', 0.0) or 0.0
             line.qty_ordered_calc = ordered_val
 
-    # CORREGIDO: Añadir 'qty_cli' a las dependencias y restar su valor al final
     @api.depends('requisition_id.purchase_ids.order_line.move_ids.state', 'requisition_id.purchase_ids.order_line.move_ids.quantity', 'qty_cli')
     def _compute_qty_almtec(self):
         """Calcula la cantidad total recibida en Tecnika MENOS lo enviado a cliente."""
@@ -107,15 +106,10 @@ class PurchaseRequisitionLine(models.Model):
                     found_moves = StockMove.search(domain_moves)
                     received_val = sum(m.quantity for m in found_moves)
 
-            # Restar la cantidad que ya se fue al cliente
             current_cli = line.qty_cli or 0.0
             almtec_final = received_val - current_cli
 
-            # Asegurar que no sea negativo
             if float_compare(almtec_final, 0.0, precision_digits=precision) < 0:
-                # Esto podría indicar una inconsistencia si cli > received_val
-                # Podríamos lanzar un warning o error aquí, o simplemente dejarlo en 0
-                # y confiar en que el constraint general lo detecte si causa problemas.
                 almtec_final = 0.0
 
             line.qty_almtec = almtec_final
@@ -128,7 +122,7 @@ class PurchaseRequisitionLine(models.Model):
             ordered = line.qty_ordered_calc or 0.0
             almmarc = line.qty_almmarc or 0.0
             almmay = line.qty_almmay or 0.0
-            almtec = line.qty_almtec or 0.0 # Ya tiene descontado lo del cliente
+            almtec = line.qty_almtec or 0.0
             cli = line.qty_cli or 0.0
             fab_calculated = ordered - (almmarc + almmay + almtec + cli)
             if float_compare(fab_calculated, 0.0, precision_digits=precision) < 0:
@@ -136,7 +130,7 @@ class PurchaseRequisitionLine(models.Model):
             line.qty_fab = fab_calculated
 
     # --- Lógica de Resta Automática con @api.onchange ---
-    # (Se mantienen igual que antes)
+
     @api.onchange('qty_almmarc')
     def _onchange_qty_almmarc(self):
         if hasattr(self, '_origin') and hasattr(self._origin, 'qty_almmarc'):
@@ -164,28 +158,14 @@ class PurchaseRequisitionLine(models.Model):
                         "No se puede mover %.{precision}f a Almacén Mayorista desde Almacén Marca porque solo hay %.{precision}f en Almacén Marca."
                     ).format(precision=precision) % (delta, qty_almmarc_current))
 
-    @api.onchange('qty_cli')
-    def _onchange_qty_cli(self):
-        # Esta validación sigue siendo útil para dar feedback inmediato al usuario
-        if hasattr(self, '_origin') and hasattr(self._origin, 'qty_cli'):
-            precision = self.env['decimal.precision'].precision_get('Product Unit of Measure') or 3
-            qty_cli_new = self.qty_cli or 0.0
-            qty_cli_old = self._origin.qty_cli or 0.0
-            delta = qty_cli_new - qty_cli_old
-            if float_compare(delta, 0.0, precision_digits=precision) > 0:
-                # Leemos el valor actual de almtec (que aún no refleja el cambio de cli en el onchange)
-                # Ojo: Si almtec dependiera de cli en el MISMO onchange, esto sería diferente.
-                # Pero como almtec se calcula por @api.depends, leemos su valor almacenado/calculado actual.
-                qty_almtec_current = self.qty_almtec or 0.0
-                if float_compare(qty_almtec_current, delta, precision_digits=precision) < 0:
-                    self.qty_cli = qty_cli_old
-                    raise UserError(_(
-                        "No se puede mover %.{precision}f a Cliente porque solo hay %.{precision}f actualmente en Almacén Tecnika."
-                    ).format(precision=precision) % (delta, qty_almtec_current))
+    # ELIMINADO: El método _onchange_qty_cli fue eliminado porque causaba
+    # validaciones incorrectas al leer el valor de qty_almtec (calculado)
+    # antes de que este se actualizara. La validación real se hace en @api.constrains.
+    # def _onchange_qty_cli(self):
+    #     ... (código anterior eliminado) ...
 
 
     # --- Validación Final con @api.constrains ---
-    # (Se mantiene igual, ahora valida usando el qty_almtec que ya tiene descontado qty_cli)
     @api.constrains(
         'qty_almmarc', 'qty_almmay', 'qty_cli',
         'requisition_id', 'product_id'
@@ -212,7 +192,7 @@ class PurchaseRequisitionLine(models.Model):
 
             almmarc = line.qty_almmarc or 0.0
             almmay = line.qty_almmay or 0.0
-            almtec = line.qty_almtec or 0.0 # Leemos el valor ya calculado (que incluye resta de cli)
+            almtec = line.qty_almtec or 0.0
             cli = line.qty_cli or 0.0
             fab_check = ordered_check - (almmarc + almmay + almtec + cli)
 

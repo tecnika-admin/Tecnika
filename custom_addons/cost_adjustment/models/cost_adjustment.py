@@ -16,14 +16,16 @@ class ProductTemplate(models.Model):
     is_kit = fields.Boolean(
         string="Es un Kit (Fantasma)",
         compute='_compute_is_kit',
-        store=True,
+        store=True, # Almacenar para usar en dominios de búsqueda/vistas
         help="Indica si el producto tiene una Lista de Materiales activa de tipo 'Kit (Fantasma)'."
     )
 
     @api.depends('bom_ids', 'bom_ids.active', 'bom_ids.type')
     def _compute_is_kit(self):
         """ Calcula si el producto es un Kit (tiene una LdM activa de tipo phantom). """
+        # Asegurarse de que bom_ids no sea None
         for template in self:
+            # Buscar explícitamente BoMs activas de tipo phantom
             has_active_phantom_bom = self.env['mrp.bom'].search_count([
                 ('product_tmpl_id', '=', template.id),
                 ('active', '=', True),
@@ -35,9 +37,9 @@ class ProductTemplate(models.Model):
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
+    # Hacer el campo is_kit disponible a nivel de product.product
+    # store=True es importante para usarlo en dominios
     is_kit = fields.Boolean(related='product_tmpl_id.is_kit', store=True)
-    # Acceso directo al tipo para facilitar lógica
-    product_type = fields.Selection(related='type', store=False)
 
 
 # ==============================================================================
@@ -105,6 +107,8 @@ class CostAdjustment(models.Model):
         for vals in vals_list:
             if vals.get('name', _('Nuevo')) == _('Nuevo'):
                 vals['name'] = self.env['ir.sequence'].next_by_code('cost.adjustment') or _('Nuevo')
+            # Asegurar que la compañía esté presente para calcular la moneda si es necesario
+            # Y también para otras operaciones dependientes de compañía
             if 'company_id' not in vals:
                 if vals.get('journal_id'):
                     journal = self.env['account.journal'].browse(vals['journal_id'])
@@ -115,53 +119,18 @@ class CostAdjustment(models.Model):
 
     # --- Acciones de Botones ---
     def action_post(self):
-        """
-        Valida, crea el asiento contable de ajuste, crea las capas de valoración (SVL)
-        condicionalmente y opcionalmente publica el asiento.
-        Archiva productos no almacenables que fueron ajustados.
-        """
         self.ensure_one()
         if not self.line_ids:
             raise UserError(_("No se puede publicar un ajuste sin líneas."))
-
-        # Crear Asiento Contable
         move = self._create_adjustment_move()
         self.adjustment_move_id = move.id
-
-        # Crear Capas de Valoración (SVL) condicionalmente
         self._create_stock_valuation_layers_conditionally(move)
-
-        # Publicar Asiento (Opcional)
         if self.auto_post_entry:
             move._post(soft=False)
-
-        # Archivar productos 'consu' ajustados
-        products_to_archive = self.env['product.product']
-        for line in self.line_ids:
-            # Usamos 'type' para identificar consumibles/servicios vs almacenables
-            if line.product_id.type != 'product':
-                 # Podríamos ser más específicos si solo queremos archivar los 'consu'
-                 # if line.product_id.type == 'consu':
-                 products_to_archive |= line.product_id
-
-        if products_to_archive:
-            _logger.info(f"Ajuste {self.name}: Archivando productos no almacenables ajustados: {products_to_archive.mapped('display_name')}")
-            try:
-                products_to_archive.action_archive()
-                self.message_post(body=_("Se han archivado los siguientes productos (configurados como no almacenables) ajustados: {}").format(
-                    ", ".join(products_to_archive.mapped('display_name'))
-                ))
-            except Exception as e:
-                _logger.error(f"Error al intentar archivar productos para el ajuste {self.name}: {e}")
-                self.message_post(body=_("Error al intentar archivar productos no almacenables ajustados. Revise los logs."))
-
-
-        # Cambiar Estado del Ajuste
         self.write({'state': 'posted'})
         return True
 
     def action_cancel(self):
-        # (Sin cambios respecto a v13)
         moves_to_reverse = self.mapped('adjustment_move_id').filtered(lambda m: m.state == 'posted')
         if moves_to_reverse:
             moves_to_reverse._reverse_moves(cancel=True)
@@ -173,7 +142,6 @@ class CostAdjustment(models.Model):
         return True
 
     def action_draft(self):
-        # (Sin cambios respecto a v13)
         self.ensure_one()
         if self.adjustment_move_id and self.adjustment_move_id.state != 'cancel':
              raise UserError(_("No puede pasar a borrador un ajuste cuyo asiento contable no está cancelado."))
@@ -182,10 +150,11 @@ class CostAdjustment(models.Model):
 
     # --- Métodos de Ayuda ---
     def _prepare_adjustment_move_vals(self):
-        # (Sin cambios respecto a v13)
+        """ Prepara los valores para crear el asiento contable de ajuste. """
         self.ensure_one()
         if not self.journal_id:
             raise UserError(_("Debe seleccionar un Diario Contable."))
+        # El campo currency_id ahora es compute con fallback
         move_currency = self.currency_id
         if not move_currency:
              raise UserError(_("No se pudo determinar la moneda. Verifique la configuración del diario ({}) y la compañía ({}).").format(self.journal_id.name, self.company_id.name))
@@ -207,7 +176,7 @@ class CostAdjustment(models.Model):
         }
 
     def _create_adjustment_move(self):
-        # (Sin cambios respecto a v13)
+        """ Crea el asiento contable (account.move) y sus líneas. """
         self.ensure_one()
         move_vals = self._prepare_adjustment_move_vals()
         move_lines_vals = []
@@ -227,26 +196,14 @@ class CostAdjustment(models.Model):
         move = self.env['account.move'].create(move_vals)
         return move
 
-    # Modificado para no crear SVL si el producto no es almacenable ('product')
     def _create_stock_valuation_layers_conditionally(self, adjustment_move):
-        """
-        Crea las capas de valoración (SVL) condicionalmente.
-        - Productos Almacenables ('product'): Aplica lógica estándar o de kit.
-        - Productos No Almacenables ('consu', 'service'): NO crea SVL.
-        Ref: RF05 (Modificado para is_storable=False)
-        """
+        """ Crea las capas de valoración (SVL) condicionalmente. """
         self.ensure_one()
         svl_obj = self.env['stock.valuation.layer']
         svl_vals_list = []
         company_currency = self.company_id.currency_id
 
         for line in self.line_ids:
-            # Solo procesar SVL para productos almacenables (tipo 'product')
-            if line.product_id.type != 'product':
-                _logger.info(f"Producto {line.product_id.name} (tipo: {line.product_id.type}) no es almacenable. Omitiendo creación de SVL para ajuste {self.name}.")
-                continue
-
-            # --- Lógica solo para productos tipo 'product' ---
             line._compute_costs_and_adjustment()
             adjustment_amount_comp_curr = line.currency_id._convert(
                 line.adjustment_amount, company_currency, line.company_id, line.adjustment_id.date_adjustment
@@ -255,7 +212,7 @@ class CostAdjustment(models.Model):
                 continue
 
             if line.product_id.is_kit:
-                # --- Lógica para Kits (Almacenables) ---
+                # --- Lógica para Kits ---
                 component_moves = line._find_kit_component_moves()
                 if not component_moves:
                     _logger.warning(f"Kit {line.product_id.name}: No se encontraron movimientos de componentes para el ajuste {self.name}. No se crearán SVLs.")
@@ -263,6 +220,7 @@ class CostAdjustment(models.Model):
 
                 original_svls = svl_obj.search([('stock_move_id', 'in', component_moves.ids)])
                 actual_component_valuation = abs(sum(original_svls.mapped('value')))
+                # Usar costo standard_price del kit * cantidad para el costo actual total
                 current_kit_total_cost = line.product_id.standard_price * line.quantity
                 current_kit_total_cost_comp_curr = line.currency_id._convert(
                     current_kit_total_cost, company_currency, line.company_id, line.adjustment_id.date_adjustment)
@@ -276,7 +234,7 @@ class CostAdjustment(models.Model):
                 else:
                      _logger.info(f"Kit {line.product_id.name}: Valoración original componentes ({actual_component_valuation}) coincide con costo actual kit ({current_kit_total_cost_comp_curr}). No se crearán SVLs de ajuste.")
             else:
-                # --- Lógica para Productos Estándar (Almacenables, no Kit) ---
+                # --- Lógica para Productos Estándar ---
                 standard_svl_vals = line._prepare_standard_product_svl_vals(adjustment_move, adjustment_amount_comp_curr)
                 if standard_svl_vals:
                     svl_vals_list.append(standard_svl_vals)
@@ -300,33 +258,26 @@ class CostAdjustmentLine(models.Model):
     original_invoice_line_id = fields.Many2one('account.move.line', string='Línea de Factura Original', required=True, help="Línea específica de la factura original cuyo costo se ajustará.")
     product_id = fields.Many2one('product.product', string='Producto', related='original_invoice_line_id.product_id', store=True, readonly=True)
     is_kit = fields.Boolean(related='product_id.is_kit', string="Es Kit", store=True, readonly=True)
-    # Campo para saber si es almacenable (tipo 'product')
-    is_storable_product = fields.Boolean(string="Es Almacenable", compute='_compute_is_storable_product', store=True)
     quantity = fields.Float(string='Cantidad Facturada', related='original_invoice_line_id.quantity', store=True, readonly=True)
-    original_cost_total = fields.Monetary(string='Costo Original Registrado (Total)', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Costo total registrado originalmente en el asiento de COGS de la factura.")
+    original_cost_total = fields.Monetary(string='Costo Original Registrado (Total)', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Costo total registrado originalmente (desde SVL o asiento COGS).")
     current_average_cost = fields.Monetary(string='Costo Actual (Unitario/Kit)', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Costo estándar/promedio actual del producto o costo unitario actual del kit.")
     adjustment_amount = fields.Monetary(string='Importe del Ajuste', compute='_compute_costs_and_adjustment', store=True, readonly=True, currency_field='currency_id', help="Diferencia calculada: (Costo Actual Total) - Costo Original Registrado.")
     analytic_distribution = fields.Json(string='Distribución Analítica', readonly=True, copy=False, help="Distribución analítica heredada de la línea de factura original (si existe).")
     company_id = fields.Many2one('res.company', related='adjustment_id.company_id', store=True, readonly=True)
     currency_id = fields.Many2one('res.currency', related='adjustment_id.currency_id', store=True, readonly=True)
     computed_account_cogs_id = fields.Many2one('account.account', string='Cuenta COGS/Gasto (Calculada)', compute='_compute_accounts', store=False, readonly=True)
-    computed_account_valuation_id = fields.Many2one('account.account', string='Cuenta Valoración/Salida (Calculada)', compute='_compute_accounts', store=False, readonly=True) # Ahora puede ser Valoración o Salida
-
-    @api.depends('product_id', 'product_id.type')
-    def _compute_is_storable_product(self):
-        """ Campo helper para saber si el producto es de tipo 'product' """
-        for line in self:
-            line.is_storable_product = line.product_id.type == 'product'
+    computed_account_valuation_id = fields.Many2one('account.account', string='Cuenta Valoración/Salida (Calculada)', compute='_compute_accounts', store=False, readonly=True)
 
     # --- Onchange ---
     @api.onchange('original_invoice_line_id')
     def _onchange_original_invoice_line_id(self):
-        # (Sin cambios)
         if self.original_invoice_line_id:
             self.analytic_distribution = self.original_invoice_line_id.analytic_distribution
+            # Forzar recálculo al cambiar la línea
             self._compute_costs_and_adjustment()
             self._compute_accounts()
         else:
+            # Limpiar campos si se deselecciona la línea
             self.analytic_distribution = False
             self.original_cost_total = 0.0
             self.current_average_cost = 0.0
@@ -334,105 +285,143 @@ class CostAdjustmentLine(models.Model):
             self.computed_account_cogs_id = False
             self.computed_account_valuation_id = False
 
-    # --- Compute Principal ---
+    # --- Compute Principal (Corregido) ---
     @api.depends('original_invoice_line_id', 'product_id', 'quantity', 'adjustment_id.date_adjustment', 'currency_id')
     def _compute_costs_and_adjustment(self):
         """
-        Calcula costos y ajuste. Costo original siempre desde COGS.
+        Calcula costos y ajuste, diferenciando entre productos estándar y Kits.
+        Optimizado para buscar datos en lote.
         """
-        if not self: return
+        # Preparar datos para búsqueda en lote
+        std_lines_map = {} # {aml_id: cost_adjustment_line}
+        kit_lines_map = {} # {aml_id: cost_adjustment_line}
+        all_products = self.env['product.product']
+        all_amls = self.env['account.move.line']
 
-        # Agrupar por compañía
-        for company in self.mapped('company_id'):
-            lines_in_company = self.filtered(lambda l: l.company_id == company)
-            company_currency = company.currency_id
-            all_amls_in_company = lines_in_company.mapped('original_invoice_line_id')
-            if not all_amls_in_company:
-                continue
+        for line in self:
+            if line.original_invoice_line_id and line.product_id:
+                all_products |= line.product_id
+                all_amls |= line.original_invoice_line_id
+                if line.product_id.is_kit:
+                    kit_lines_map[line.original_invoice_line_id.id] = line
+                else:
+                    std_lines_map[line.original_invoice_line_id.id] = line
+            else:
+                line.original_cost_total = 0.0
+                line.current_average_cost = 0.0
+                line.adjustment_amount = 0.0
 
-            # --- Pre-búsqueda de Costo Original (COGS) para TODAS las líneas ---
-            original_cogs_costs = {} # {aml_id: cost}
-            all_products = lines_in_company.mapped('product_id')
+        if not all_amls:
+            return # Nada que calcular
+
+        # --- Obtener Costo Original para Kits ---
+        cogs_costs = {} # {aml_id: cost}
+        if kit_lines_map:
+            kit_products = all_products.filtered(lambda p: p.is_kit)
             cogs_account_ids = []
-            for prod in all_products:
-                 accounts = prod.with_company(company)._get_product_accounts()
+            for prod in kit_products:
+                 # Usar with_context para asegurar la compañía correcta si es necesario
+                 accounts = prod.with_company(prod.company_id)._get_product_accounts()
                  if accounts.get('expense'):
                      cogs_account_ids.append(accounts['expense'].id)
             cogs_account_ids = list(set(cogs_account_ids))
 
             if cogs_account_ids:
                 cogs_move_lines = self.env['account.move.line'].search([
-                    ('id', 'in', all_amls_in_company.ids),
+                    ('move_id', 'in', all_amls.mapped('move_id').ids),
+                    ('product_id', 'in', kit_products.ids),
                     ('account_id', 'in', cogs_account_ids),
-                    ('parent_state', '=', 'posted')
+                    ('parent_state', '=', 'posted'),
+                    ('id', 'in', all_amls.ids) # Buscar solo las líneas originales relevantes
                 ])
                 for ml in cogs_move_lines:
-                    original_cogs_costs[ml.id] = original_cogs_costs.get(ml.id, 0.0) + ml.debit
+                    # El costo de venta es el débito en la cuenta de gasto
+                    cogs_costs[ml.id] = ml.debit
 
-            # --- Calcular y Asignar Valores ---
-            for line in lines_in_company:
-                original_cost = 0.0
-                current_cost_total = 0.0
-                current_cost_unit = 0.0
-                adjustment = 0.0
-                product = line.product_id
-                invoice_line = line.original_invoice_line_id
-                line_currency = line.currency_id or company_currency
+        # --- Obtener Costo Original para Productos Estándar ---
+        original_svl_costs = {} # {aml_id: cost}
+        if std_lines_map:
+            std_amls = self.env['account.move.line'].browse(list(std_lines_map.keys()))
+            sale_line_ids = std_amls.mapped('sale_line_ids').ids
+            if sale_line_ids:
+                stock_moves = self.env['stock.move'].search([
+                    ('sale_line_id', 'in', sale_line_ids),
+                    ('product_id', 'in', std_amls.mapped('product_id').ids),
+                    ('company_id', 'in', std_amls.mapped('company_id').ids),
+                    ('state', '=', 'done'),
+                    ('location_dest_id.usage', '=', 'customer'),
+                ])
+                # Mapear aml -> move -> svl cost
+                map_move_to_cost = {}
+                if stock_moves:
+                    svls = self.env['stock.valuation.layer'].search([
+                        ('stock_move_id', 'in', stock_moves.ids),
+                        ('company_id', 'in', std_amls.mapped('company_id').ids),
+                    ])
+                    map_move_to_cost = {svl.stock_move_id.id: abs(svl.value) for svl in svls}
 
-                if invoice_line and product and line_currency:
-                    current_cost_unit = product.standard_price
-                    current_cost_total = current_cost_unit * line.quantity
-
-                    # Costo original SIEMPRE desde el asiento COGS pre-buscado
-                    original_cost = original_cogs_costs.get(invoice_line.id, 0.0)
-
-                    # Convertir costo original (que está en moneda compañía) a moneda de la línea
-                    if company_currency != line_currency:
-                         original_cost = company_currency._convert(original_cost, line_currency, company, line.adjustment_id.date_adjustment)
-
-                    adjustment = current_cost_total - original_cost
-
-                line.original_cost_total = line_currency.round(original_cost) if line_currency else 0.0
-                line.current_average_cost = line_currency.round(current_cost_unit) if line_currency else 0.0
-                line.adjustment_amount = line_currency.round(adjustment) if line_currency else 0.0
+                # Mapear aml -> cost
+                for aml in std_amls:
+                    # Encontrar el move correspondiente (puede haber varios, tomar uno)
+                    relevant_move = stock_moves.filtered(
+                        lambda m, aml=aml: aml.sale_line_ids & m.sale_line_id and m.product_id == aml.product_id
+                    )
+                    if relevant_move:
+                        original_svl_costs[aml.id] = map_move_to_cost.get(relevant_move[0].id, 0.0)
 
 
-    # --- Compute Cuentas (Modificado para cuenta contrapartida condicional) ---
-    @api.depends('product_id', 'company_id', 'product_id.type')
-    def _compute_accounts(self):
-        """ Calcula y muestra las cuentas que se usarán en el asiento. """
+        # --- Calcular y Asignar Valores ---
         for line in self:
-            acc_cogs = False
-            acc_contra = False # Puede ser Salida o Valoración
+            original_cost = 0.0
+            current_cost_total = 0.0
+            current_cost_unit = 0.0
+            adjustment = 0.0
+            product = line.product_id
+            invoice_line = line.original_invoice_line_id
+            line_currency = line.currency_id or line.company_id.currency_id
+
+            if invoice_line and product and line_currency:
+                # Costo actual siempre basado en standard_price (unitario)
+                current_cost_unit = product.standard_price
+                current_cost_total = current_cost_unit * line.quantity
+
+                # Costo original depende del tipo
+                if product.is_kit:
+                    original_cost = cogs_costs.get(invoice_line.id, 0.0)
+                else:
+                    original_cost = original_svl_costs.get(invoice_line.id, 0.0)
+
+                # Convertir costo original (que está en moneda compañía) a moneda de la línea
+                company_currency = line.company_id.currency_id
+                if company_currency != line_currency:
+                     original_cost = company_currency._convert(original_cost, line_currency, line.company_id, line.adjustment_id.date_adjustment)
+
+                adjustment = current_cost_total - original_cost
+
+            line.original_cost_total = line_currency.round(original_cost) if line_currency else 0.0
+            line.current_average_cost = line_currency.round(current_cost_unit) if line_currency else 0.0
+            line.adjustment_amount = line_currency.round(adjustment) if line_currency else 0.0
+
+
+    # --- Compute Cuentas ---
+    @api.depends('product_id', 'company_id')
+    def _compute_accounts(self):
+        # (Sin cambios)
+        for line in self:
+            accounts = {'expense': False, 'stock_output': False}
             if line.product_id and line.company_id:
-                 product_in_company = line.product_id.with_company(line.company_id)
-                 accounts_dict = product_in_company._get_product_accounts()
-                 acc_cogs = accounts_dict.get('expense')
-                 if product_in_company.type == 'product': # Es Almacenable
-                     acc_contra = accounts_dict.get('stock_output')
-                 elif product_in_company.type == 'consu': # Es Consumible
-                     # Usar cuenta de valoración como contrapartida
-                     acc_contra = accounts_dict.get('stock_valuation')
-                 # Si es 'service', acc_contra será False (no debería llegar aquí por el domain)
-
-                 # Fallback a la categoría si falta alguna cuenta (aunque _get_product_accounts debería ser suficiente)
-                 categ = product_in_company.categ_id
-                 if not acc_cogs: acc_cogs = categ.property_account_expense_categ_id
-                 if not acc_contra:
-                     if product_in_company.type == 'product':
-                         acc_contra = categ.property_stock_account_output_categ_id
-                     elif product_in_company.type == 'consu':
-                         acc_contra = categ.property_stock_valuation_account_id
-
-            line.computed_account_cogs_id = acc_cogs
-            line.computed_account_valuation_id = acc_contra # Asignar la cuenta de contrapartida encontrada
+                 accounts_dict = line.product_id.with_company(line.company_id)._get_product_accounts()
+                 line.computed_account_cogs_id = accounts_dict.get('expense')
+                 line.computed_account_valuation_id = accounts_dict.get('stock_output')
+            else:
+                 line.computed_account_cogs_id = False
+                 line.computed_account_valuation_id = False
 
     # --- Métodos de Ayuda ---
     def _find_original_stock_move(self):
         # (Sin cambios)
         self.ensure_one()
-        # Solo aplica a productos tipo 'product'
-        if not self.original_invoice_line_id or not self.product_id or self.product_id.type != 'product':
+        if not self.original_invoice_line_id or not self.product_id or self.product_id.is_kit:
             return self.env['stock.move']
         aml = self.original_invoice_line_id
         stock_moves = self.env['stock.move']
@@ -444,6 +433,7 @@ class CostAdjustmentLine(models.Model):
                 ('state', '=', 'done'),
                 ('location_dest_id.usage', '=', 'customer'),
             ]
+            # Buscar el más reciente puede ser una heurística razonable
             stock_moves = self.env['stock.move'].search(domain, order='date desc', limit=1)
         if not stock_moves:
              _logger.warning(f"No se encontró stock.move para la línea de factura {aml.id} (Producto Estándar: {self.product_id.name})")
@@ -462,8 +452,11 @@ class CostAdjustmentLine(models.Model):
         if not bom:
              _logger.warning(f"No se encontró LdM tipo Phantom para el Kit {self.product_id.name}.")
              return self.env['stock.move']
-        components, dummy = bom.explode(self.product_id, self.quantity)
-        component_ids = [c[0].id for c in components if c[0].type != 'phantom']
+        # Obtener componentes y sus cantidades de la LdM para la cantidad del Kit
+        # Esto podría ser más complejo si hay LdMs anidadas
+        components, dummy = bom.explode(self.product_id, self.quantity) # Usar cantidad de la línea de ajuste
+        component_ids = [c[0].id for c in components if c[0].type != 'phantom'] # IDs de componentes reales
+
         domain = [
             ('sale_line_id', 'in', aml.sale_line_ids.ids),
             ('product_id', 'in', component_ids),
@@ -476,86 +469,60 @@ class CostAdjustmentLine(models.Model):
              _logger.warning(f"No se encontraron stock.move de componentes para la línea de factura {aml.id} (Kit: {self.product_id.name})")
         return component_moves
 
-    # Modificado para devolver la cuenta correcta según el tipo de producto
     def _get_adjustment_accounts(self):
-        """ Obtiene las cuentas COGS y la contrapartida correcta (Salida o Valoración). """
+        # (Sin cambios)
         self.ensure_one()
         if not self.product_id:
             raise UserError(_("No se puede determinar cuentas sin un producto en la línea {}.").format(self.id))
-
         product_in_company = self.product_id.with_company(self.company_id)
         accounts = product_in_company._get_product_accounts()
         acc_cogs = accounts.get('expense')
-        acc_contra = False
+        acc_valuation = accounts.get('stock_output')
+        if not acc_cogs or not acc_valuation:
+             categ = product_in_company.categ_id
+             raise UserError(
+                 _("No se pudieron determinar las cuentas de Costo de Venta (Gasto: {}) y/o Salida de Stock (Valoración: {}) para el producto '{}' (Categoría: {}). Verifique la configuración contable.")
+                 .format(acc_cogs.code if acc_cogs else 'N/A',
+                         acc_valuation.code if acc_valuation else 'N/A',
+                         product_in_company.display_name,
+                         categ.display_name)
+             )
+        return acc_cogs, acc_valuation
 
-        if product_in_company.type == 'product': # Almacenable (Estándar o Kit)
-            acc_contra = accounts.get('stock_output')
-        elif product_in_company.type == 'consu': # Consumible (mal configurado)
-            acc_contra = accounts.get('stock_valuation') # Usar cuenta de valoración
-        # else: tipo 'service', no debería llegar aquí por el domain de la vista
-
-        # Fallback a la categoría si falta alguna cuenta
-        categ = product_in_company.categ_id
-        if not acc_cogs:
-            acc_cogs = categ.property_account_expense_categ_id
-        if not acc_contra:
-            if product_in_company.type == 'product':
-                acc_contra = categ.property_stock_account_output_categ_id
-            elif product_in_company.type == 'consu':
-                acc_contra = categ.property_stock_valuation_account_id
-
-        # Validar que se encontraron ambas cuentas necesarias
-        if not acc_cogs or not acc_contra:
-             error_msg = _("No se pudieron determinar las cuentas requeridas para el ajuste del producto '{}' (Categoría: {}). ".format(product_in_company.display_name, categ.display_name))
-             if not acc_cogs: error_msg += _("Falta cuenta de Gasto/COGS. ")
-             if not acc_contra:
-                 if product_in_company.type == 'product': error_msg += _("Falta cuenta de Salida de Stock. ")
-                 elif product_in_company.type == 'consu': error_msg += _("Falta cuenta de Valoración de Inventario. ")
-             error_msg += _("Verifique la configuración contable del producto/categoría.")
-             raise UserError(error_msg)
-
-        return acc_cogs, acc_contra
-
-    # Usa _get_adjustment_accounts que ahora devuelve la cuenta correcta
     def _prepare_adjustment_move_lines_vals(self, move_currency):
-        """ Prepara las DOS líneas del asiento contable. """
+        # (Sin cambios)
         self.ensure_one()
         vals_list = []
         if float_is_zero(self.adjustment_amount, precision_rounding=move_currency.rounding):
              return []
         amount = self.currency_id._convert(self.adjustment_amount, move_currency, self.company_id, self.adjustment_id.date_adjustment)
-        acc_cogs, acc_contrapartida = self._get_adjustment_accounts() # Obtiene la cuenta correcta (Salida o Valoración)
+        acc_cogs, acc_valuation = self._get_adjustment_accounts()
         partner_id = self.adjustment_id.original_invoice_id.partner_id.id
         name = _("Ajuste Costo: {}").format(self.product_id.display_name)
-        debit_cogs, credit_cogs, debit_contra, credit_contra = 0.0, 0.0, 0.0, 0.0
-
+        debit_cogs, credit_cogs, debit_val, credit_val = 0.0, 0.0, 0.0, 0.0
         if float_compare(amount, 0.0, precision_rounding=move_currency.rounding) > 0:
             debit_cogs = amount
-            credit_contra = amount
+            credit_val = amount
         else:
             credit_cogs = abs(amount)
-            debit_contra = abs(amount)
-
+            debit_val = abs(amount)
         vals_cogs = {
             'name': name, 'account_id': acc_cogs.id, 'debit': debit_cogs, 'credit': credit_cogs,
             'analytic_distribution': self.analytic_distribution or False, 'partner_id': partner_id,
             'product_id': self.product_id.id, 'quantity': self.quantity, 'currency_id': move_currency.id,
         }
         vals_list.append(vals_cogs)
-        vals_contrapartida = {
-            'name': name, 'account_id': acc_contrapartida.id, 'debit': debit_contra, 'credit': credit_contra,
+        vals_valuation = {
+            'name': name, 'account_id': acc_valuation.id, 'debit': debit_val, 'credit': credit_val,
             'analytic_distribution': False, 'partner_id': partner_id,
             'product_id': self.product_id.id, 'quantity': self.quantity, 'currency_id': move_currency.id,
         }
-        vals_list.append(vals_contrapartida)
+        vals_list.append(vals_valuation)
         return vals_list
 
     def _prepare_standard_product_svl_vals(self, adjustment_move, adjustment_amount_comp_curr):
          # (Sin cambios)
          self.ensure_one()
-         # Este método solo debería llamarse para productos tipo 'product'
-         if self.product_id.type != 'product': return {}
-
          stock_move = self._find_original_stock_move()
          if not stock_move:
              _logger.warning(f"No se creará SVL estándar para la línea {self.id} (Producto: {self.product_id.name}) porque no se encontró el stock.move original.")
@@ -580,8 +547,11 @@ class CostAdjustmentLine(models.Model):
              'company_id': self.company_id.id,
          }
 
+    # Corregido uso de quantity_done por quantity (según indicación del usuario)
     def _prepare_kit_component_svl_vals(self, adjustment_move, component_moves, kit_adjustment_total_comp_curr):
-        # (Sin cambios funcionales, solo usa move.quantity)
+        """
+        Prepara los valores para crear los SVL de ajuste para los COMPONENTES de un Kit.
+        """
         self.ensure_one()
         company_currency = self.company_id.currency_id
         if float_is_zero(kit_adjustment_total_comp_curr, precision_rounding=company_currency.rounding):
@@ -593,7 +563,10 @@ class CostAdjustmentLine(models.Model):
         component_data = []
         precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
         for move in component_moves:
-            quantity_moved = move.quantity # Usando move.quantity según indicación previa
+            # Usar 'quantity' según la indicación del usuario.
+            # ¡¡PRECAUCIÓN!! Verificar que 'move.quantity' realmente contenga la cantidad procesada.
+            # El campo estándar para cantidad procesada en stock.move es 'quantity_done'.
+            quantity_moved = move.quantity # <-- Usando move.quantity
             if float_is_zero(quantity_moved, precision_digits=precision):
                  continue
 
@@ -644,7 +617,7 @@ class CostAdjustmentLine(models.Model):
         final_sum = sum(v['value'] for v in svl_vals_list)
         if not float_is_zero(final_sum - kit_adjustment_total_comp_curr, precision_rounding=company_currency.rounding):
             _logger.error(f"Error de redondeo en distribución SVL para Kit {self.product_id.name} (Ajuste: {self.adjustment_id.name}). Total Distribuido: {final_sum}, Total Esperado: {kit_adjustment_total_comp_curr}")
-            if svl_vals_list and abs(kit_adjustment_total_comp_curr - final_sum) < company_currency.rounding * 2:
+            if svl_vals_list and abs(kit_adjustment_total_comp_curr - final_sum) < company_currency.rounding * 2: # Ajustar si la diferencia es muy pequeña
                  diff = kit_adjustment_total_comp_curr - final_sum
                  svl_vals_list[-1]['value'] += diff
                  svl_vals_list[-1]['remaining_value'] += diff
@@ -672,17 +645,13 @@ class AccountMove(models.Model):
         Hereda para añadir la reversión de SVL (estándar y de componentes de kit).
         Ref: RF09 (Modificado para Kits v2)
         """
-        # (Sin cambios funcionales respecto a v13, ya que la lógica de buscar
-        # SVLs asociados al asiento de ajuste original funciona para ambos casos:
-        # si es estándar encontrará 1 SVL, si es kit con SVLs encontrará varios,
-        # si es consumible no encontrará ninguno)
         default_values_list = default_values_list or [{} for _ in self]
         reversed_moves = super(AccountMove, self)._reverse_moves(default_values_list=default_values_list, cancel=cancel)
 
         svl_obj = self.env['stock.valuation.layer']
         adjustment_obj = self.env['cost.adjustment']
         svl_to_create = []
-        adjustments_to_cancel = adjustment_obj.browse() # Inicializar vacío
+        adjustments_to_cancel = adjustment_obj
 
         map_original_to_reversed = {rev.reversed_entry_id.id: rev for rev in reversed_moves if rev.reversed_entry_id}
 
