@@ -176,6 +176,17 @@ class HrPayslipEmployeesExt(models.TransientModel):
                    if emp_line_exist:
                         res.update({'worked_days_line_ids': [(0, 0, x) for x in emp_line_exist.create_worklines(slip_data['value'].get('worked_days_line_ids'))],})
 
+            #Compute days for incapacidad general
+            holiday_inc = self.env['hr.leave'].search([('employee_id','=', employee.id), ('date_from','>=', from_date), 
+                                                       ('date_from', '<=', to_date), 
+                                                       ('holiday_status_id.code', '=', 'INC_EG'), ('state', '=', 'validate')],)
+            if holiday_inc:
+                dias_incapacidad = 0
+                for incapacidad in holiday_inc:
+                    dias_incapacidad += incapacidad.dias_pagar
+                    incapacidad.dias_pagar = 0
+                res.update({'dias_pagar_incapacidad': dias_incapacidad,})
+
             payslips += self.env['hr.payslip'].create(res)
         payslips.compute_sheet()
 

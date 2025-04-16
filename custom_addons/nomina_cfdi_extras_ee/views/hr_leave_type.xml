@@ -12,12 +12,12 @@
         </field>
     </record>
 
-    <record model="ir.ui.view" id="hr_leave_view_ext">
-        <field name="name">hr.leave.view.inherit</field>
+    <record id="view_hr_leave_form_inherit" model="ir.ui.view">
+        <field name="name">hr.leave.form.inherit</field>
         <field name="model">hr.leave</field>
-        <field name="inherit_id" ref="hr_holidays.hr_leave_view_form_manager"/>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_form"/>
         <field name="arch" type="xml">
-            <div name="duration_warning" position="after">
+            <xpath expr="//group[@name='col_left']" position="after">
                  <field name="type_vac" invisible='1'/>
                  <field name="type_inc" invisible='1'/>
                  <group>
@@ -32,10 +32,11 @@
                          <field name="control2" readonly="state == 'validate'" invisible="ramo_de_seguro not in ('Maternidad')" required="ramo_de_seguro in ('Maternidad')"/>
                          <field name="porcentaje" readonly="state == 'validate'" invisible="ramo_de_seguro not in ('Riesgo de trabajo')" required="ramo_de_seguro in ('Riesgo de trabajo')"/>
                          <field name="folio_incapacidad" readonly="state == 'validate'" required="type_inc == True"/>
+                         <field name="dias_pagar" readonly="state == 'validate'" invisible="ramo_de_seguro not in ('Enfermedad general')"/>
                      </group>
                  </group>
                  <field colspan="4" name="descripcion" class="oe_inline" placeholder="Descripción de la incapacidad" readonly="state == 'validate'" invisible="type_inc == False"/>
-            </div>
+            </xpath>
         </field>
     </record>
 

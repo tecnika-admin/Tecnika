@@ -88,7 +88,7 @@ class HrPayslip(models.Model):
     selo_sat = fields.Char(string=_('Selo del SAT'))
     moneda = fields.Char(string=_('Moneda'))
     tipocambio = fields.Char(string=_('TipoCambio'))
-    folio = fields.Char(string=_('Folio'))
+    #folio = fields.Char(string=_('Folio'))
     version = fields.Char(string=_('Version'))
     serie_emisor = fields.Char(string=_('Serie'))
     invoice_datetime = fields.Char(string=_('fecha factura'))
@@ -128,10 +128,10 @@ class HrPayslip(models.Model):
     pat_infonavit = fields.Float(string='INFONAVIT')
     pat_total = fields.Float(string='IMSS patron')
 
-    forma_pago = fields.Selection(
-        selection=[('99', '99 - Por definir'),],
-        string=_('Forma de pago'),default='99',
-    )	
+    #forma_pago = fields.Selection(
+    #    selection=[('99', '99 - Por definir'),],
+    #    string=_('Forma de pago'),default='99',
+    #)	
     tipo_comprobante = fields.Selection(
         selection=[('N', 'Nómina'),],
         string=_('Tipo de comprobante'),default='N',
@@ -197,6 +197,7 @@ class HrPayslip(models.Model):
     cumpleanos = fields.Boolean(string=_('Cumpleaños'), compute='_get_cumpleanos', default = False)
     total_nom = fields.Float('Total')
     company_cfdi = fields.Boolean(related="company_id.company_cfdi",store=True)
+    dias_pagar_incapacidad = fields.Integer("Dias incapacidad a pagar")
 
     def get_amount_from_rule_code(self, rule_code):
         line = self.env['hr.payslip.line'].search([('slip_id', '=', self.id), ('code', '=', rule_code)])
@@ -409,7 +410,17 @@ class HrPayslip(models.Model):
             d_to_1 = fields.Date.from_string(date_to)
             if date_start_1 > d_from_1:
                 if contract.work_entry_source != 'attendance':
-                   work_data['days'] =  (d_to_1 - date_start_1).days + 1
+                    if contract.periodicidad_pago == '04' and contract.tipo_pago != '02':
+                        if d_to_1.day == 30:
+                            work_data['days'] =  (d_to_1 - date_start_1).days + 1
+                        elif d_to_1.day == 31:
+                            work_data['days'] =  (d_to_1 - date_start_1).days
+                        elif d_to_1.day == 29:
+                            work_data['days'] =  (d_to_1 - date_start_1).days + 2
+                        else:
+                            work_data['days'] =  (d_to_1 - date_start_1).days + 3
+                    else:
+                        work_data['days'] =  (d_to_1 - date_start_1).days + 1
                 nvo_ingreso = True
             if contract.date_end:
                if d_from_1 <= contract.date_end <= d_to_1:
@@ -1112,6 +1123,10 @@ class HrPayslip(models.Model):
                             'Importe': line.total
                         })
                     else:
+                        if self.date_from.month == 12:
+                            comp_year = self.date_from.year
+                        else:
+                            comp_year = self.date_from.year - 1
                         lineas_de_otros_pagos.append({
                             'TipoOtrosPagos': line.salary_rule_id.tipo_cotro_pago.clave,
                             'Clave': line.code,
@@ -1119,7 +1134,7 @@ class HrPayslip(models.Model):
                             'Importe': line.total,
                             'CompensacionSaldosAFavor': {
                                           'SaldoAFavor': line.total,
-                                          'Ano': self.date_from.year,
+                                          'Ano': comp_year,
                                           'RemanenteSalFav':0,
                             }
                         })
@@ -1518,10 +1533,6 @@ class HrPayslip(models.Model):
         self.selo_digital_cdfi = TimbreFiscalDigital.attrib['SelloCFD']
         self.selo_sat = TimbreFiscalDigital.attrib['SelloSAT']
         self.folio_fiscal = TimbreFiscalDigital.attrib['UUID']
-     #   if self.number:
-     #       self.folio = xml_data.attrib['Folio']
-     #   if self.company_id.serie_nomina:
-     #       self.serie_emisor = xml_data.attrib['Serie']
         self.invoice_datetime = xml_data.attrib['Fecha']
         version = TimbreFiscalDigital.attrib['Version']
         self.cadena_origenal = '||%s|%s|%s|%s|%s||' % (version, self.folio_fiscal, self.fecha_certificacion,
@@ -1564,7 +1575,7 @@ class HrPayslip(models.Model):
                           'rfc': payslip.company_id.vat,
                           'api_key': payslip.company_id.proveedor_timbrado,
                           'uuid': payslip.folio_fiscal,
-                          'folio': payslip.folio,
+                          'folio': payslip.number_folio,
                           'serie_factura': payslip.company_id.serie_nomina,
                           'modo_prueba': payslip.company_id.modo_prueba,
                             'certificados': {

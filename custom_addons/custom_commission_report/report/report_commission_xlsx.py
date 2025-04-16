@@ -70,8 +70,8 @@ class CommissionReportXLSX(models.AbstractModel):
         headers = [
             "Factura", "fecha factura", "Fecha Pago", "Días dif", "Vendedor", "Cliente",
             "Fecha vencimiento", "Producto", "Cantidad", "Precio unitario en MXN",
-            "Costo de venta", "Margen en MXN", "Divisa", "TC", "Subtotal Factura",
-            "Subtotal Factura MXN", "Total MXN", "Saldo pendiente MXN", "Abonado_MXN",
+            "Costo de venta", "Subtotal Factura MXN", "Margen en MXN", "Divisa", "TC", 
+            "Subtotal Factura", "Total MXN", "Saldo pendiente MXN", "Abonado_MXN",
             "Monto pagado", #"Fecha de pago_dup", # Exclude duplicate date column
             #"Aplica_comision" # This seems redundant with "Días dif"
         ]

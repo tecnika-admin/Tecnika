@@ -80,6 +80,8 @@ class GeneraLiquidaciones(models.TransientModel):
                'fecha_pago' : date_to,
            })
            if module and module.state == 'installed':
+               if not self.journal_id:
+                  raise UserError("Falta a agregar un diario")
                batch.update({'journal_id': self.journal_id.id})
         #nomina
         payslip_obj = self.env['hr.payslip']
@@ -150,6 +152,8 @@ class GeneraLiquidaciones(models.TransientModel):
              #'input_line_ids': [(0, 0, x) for x in payslip_vals.get('input_line_ids',[])],
             })
         if module and module.state == 'installed':
+            if not self.journal_id:
+                raise UserError("Falta a agregar un diario")
             payslip_vals.update({'journal_id': self.journal_id.id})
         payslip_obj.create(payslip_vals)
         
@@ -181,6 +185,8 @@ class GeneraLiquidaciones(models.TransientModel):
                'worked_days_line_ids': worked_days2, #[(0, 0, x) for x in payslip_vals2.get('worked_days_line_ids',[])],
             })
             if module and module.state == 'installed':
+                if not self.journal_id:
+                   raise UserError("Falta a agregar un diario")
                 payslip_vals2.update({'journal_id': self.journal_id.id})
             payslip_obj.create(payslip_vals2)
             

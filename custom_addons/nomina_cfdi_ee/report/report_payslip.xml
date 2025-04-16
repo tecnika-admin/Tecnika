@@ -73,7 +73,7 @@
 
           <!--INICIA LOGO DE LA EMPRESA-->
                <div class="col-4">
-                   <img t-if="o.company_id.logo" t-att-src="image_data_uri(o.company_id.logo)" style="height: 130px;width: 130px;padding-left:10px;" />
+                   <img t-if="o.company_id.logo" t-att-src="image_data_uri(o.company_id.logo)" style="max-height: 130px;max-width: 130px;padding-left:10px;"/>
                </div>
           <!--TERMINA LOGO DE LA EMPRESA-->
 
@@ -100,7 +100,7 @@
               <div>
                 <strong>Folio:</strong>
                 <strong><span t-if="not o.company_id.serie_nomina=='false'" t-field="o.company_id.serie_nomina" /></strong>
-                <span t-field="o.folio" />
+                <span t-field="o.number_folio" />
               </div>
               <div>
                 <strong>Fecha emisión: </strong>
@@ -121,6 +121,7 @@
             </div>
             <!--TERMINA INFORMACIÓN GENERAL DE LA NOMINA-->
           </div>
+            <t t-set="dias_work" t-value="0.0"/>
             <t t-set="dias_trabajados" t-value="0.0"/>
             <t t-set="dias_vacaiones" t-value="0.0"/>
             <t t-set="septimo_dia" t-value="0.0"/>
@@ -141,10 +142,12 @@
 
             <t t-set="worked_days" t-value="o.worked_days_line_ids.filtered(lambda x:x.code=='WORK100')" />
             <t t-if="len(worked_days)>0">
+                 <t t-set="dias_work" t-value="dias_work + worked_days[0].number_of_days"/>
                  <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
             </t>
             <t t-set="worked_days" t-value="o.worked_days_line_ids.filtered(lambda x:x.code=='FJC')" />
             <t t-if="len(worked_days)>0">
+                 <t t-set="dias_work" t-value="dias_work + worked_days[0].number_of_days"/>
                  <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
             </t>
             <t t-set="worked_days" t-value="o.worked_days_line_ids.filtered(lambda x:x.code=='SEPT')" />
@@ -221,7 +224,7 @@
                           <strong>Fecha de ingreso</strong>: <span t-field="o.contract_id.date_start" />
                        </div>
                        <div>
-                          <strong>Total de días laborados</strong>: <span t-esc="dias_trabajados" />
+                          <strong>Días pagados</strong>: <span t-esc="dias_trabajados" />
                        </div>
                     </div>
           <!--TERMINA DATOS DE NOMINA-->
@@ -257,7 +260,7 @@
                                           t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/></td>
                                 <td height="0" class="text-right">
                                     <t t-if= "line.code == 'P001'"><!-- días trabajados -->
-                                       <span t-esc="'%.2f'% dias_trabajados"/>
+                                       <span t-esc="'%.2f'% dias_work"/>
                                     </t>
                                     <t t-if= "line.code == 'P009'"> <!-- vacaciones -->
                                        <span t-esc="'%.2f'% dias_vacaiones"/>
@@ -462,11 +465,6 @@
 
          <div class="row">
             <div class="col-3" style="font-size:10px;">
-              <strong>Forma de pago</strong><br/>
-                <span t-field="o.forma_pago"/>
-            </div>
-            
-            <div class="col-3" style="font-size:10px;">
               <strong>Tipo de comprobante</strong><br/>
                 <span t-field="o.tipo_comprobante"/>
             </div>
@@ -477,7 +475,7 @@
             </div> 
 
             <div class="col-3" style="font-size:10px;">
-              <strong>Uso CFDI(cliente)</strong><br/>
+              <strong>Uso CFDI</strong><br/>
                 <span t-field="o.uso_cfdi"/>
             </div>
         </div>

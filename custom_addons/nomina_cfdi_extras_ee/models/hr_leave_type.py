@@ -14,7 +14,7 @@ class HolidaysRequest(models.Model):
     _inherit = "hr.leave"
 
     ######### Vacaciones
-    dias_de_vacaciones_disponibles = fields.Integer("Dias de vacaciones disponibles")
+    dias_de_vacaciones_disponibles = fields.Integer("Dias de vacaciones disponibles", store=True)
 
     ######### Incapacidades
     ramo_de_seguro = fields.Selection([('Riesgo de trabajo', 'Riesgo de trabajo'), ('Enfermedad general', 'Enfermedad general'), ('Maternidad','Maternidad')], string='Ramo de seguro')
@@ -28,6 +28,7 @@ class HolidaysRequest(models.Model):
 
     type_vac = fields.Boolean('Vac', compute='_compute_type')
     type_inc = fields.Boolean('Inc', compute='_compute_type')
+    dias_pagar = fields.Integer("Dias a pagar")
 
     ######### Vacaciones
     @api.onchange('employee_id', 'holiday_status_id')
@@ -55,10 +56,16 @@ class HolidaysRequest(models.Model):
            if leave.holiday_status_id.code == 'INC_MAT' or  leave.holiday_status_id.code == 'INC_RT' or leave.holiday_status_id.code == 'INC_EG':
                leave.type_inc = True
 
+    @api.onchange('dias_pagar')
+    def _onchange_dias_pagar(self):
+        if self.dias_pagar and self.dias_pagar > 3:
+            raise UserError("El máximo a pagar por la empresa son 3 días")
+
     def action_approve(self):
         for leave in self:
            if leave.holiday_status_id.code == 'VAC':
               vac_adelantada = self.env['ir.config_parameter'].sudo().get_param('nomina_cfdi_extras_ee.vacaciones_adelantadas')
+              leave._onchange_employee_id()
 
               if leave.number_of_days and leave.number_of_days > leave.dias_de_vacaciones_disponibles:
                  if not vac_adelantada:
@@ -98,3 +105,4 @@ class HolidaysRequest(models.Model):
                           vac[0].write({'dias':saldo_ant})
 
         return super(HolidaysRequest, self).action_refuse()
+

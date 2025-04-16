@@ -43,7 +43,7 @@
 		                <div class="col-4" style="font-size:12px;">
 		                	<div><strong>Folio:</strong>
 		                	<strong><span t-if="docs and not docs[0].company_id.serie_nomina=='false'" t-field="docs[0].company_id.serie_nomina" /></strong>
-		                	<span t-if="docs" t-field="docs[0].folio" />
+		                	<span t-if="docs" t-field="docs[0].number_folio" />
 		                </div>
 		                <div>
 		                	<strong>Fecha emisión: </strong>
