@@ -19,11 +19,11 @@ class ProductTemplate(models.Model):
         store=True,
         help="Indica si el producto tiene una Lista de Materiales activa de tipo 'Kit (Fantasma)'."
     )
-    # El campo 'is_storable' estándar se basa en 'type == "product"'
+    # Campo estándar 'is_storable' basado en tipo. store=True para usar en dominios.
     is_storable = fields.Boolean(
         string="Es Almacenable (Tipo)",
         compute='_compute_is_storable',
-        store=True, # Almacenar para poder usar en dominios y lógica
+        store=True,
         help="Técnico: Verdadero si el tipo de producto es 'Almacenable'."
     )
 
@@ -42,6 +42,8 @@ class ProductTemplate(models.Model):
     def _compute_is_storable(self):
         """ Campo helper para saber si el producto es de tipo 'product' """
         for template in self:
+            # En estándar, solo type='product' es is_storable=True
+            # Si el usuario tiene otra lógica para is_storable, este compute debe ajustarse.
             template.is_storable = template.type == 'product'
 
 
@@ -103,7 +105,7 @@ class CostAdjustment(models.Model):
     def action_post(self):
         """
         Valida, crea asiento, crea SVL condicionalmente, publica asiento (opc),
-        y archiva productos mal configurados ajustados.
+        y archiva productos "Almacenables Mal Configurados" ajustados.
         """
         self.ensure_one()
         if not self.line_ids:
@@ -121,7 +123,7 @@ class CostAdjustment(models.Model):
         products_to_archive = self.env['product.product']
         for line in self.line_ids:
             product = line.product_id
-            # Condición específica para "Almacenable Mal Configurado" según definición del usuario
+            # Condición específica para "Almacenable Mal Configurado"
             if product.product_type == 'consu' and product.product_valuation == 'real_time' and not product.is_storable:
                  products_to_archive |= product
 
@@ -208,11 +210,12 @@ class CostAdjustment(models.Model):
         move = self.env['account.move'].create(move_vals)
         return move
 
+    # Modificado para usar product_valuation como criterio principal para SVL
     def _create_stock_valuation_layers_conditionally(self, adjustment_move):
         """
         Crea las capas de valoración (SVL) condicionalmente.
-        - Productos 'Almacenables Correctos': Aplica lógica estándar o de kit.
-        - Productos 'Almacenables Mal Configurados' o 'Consumibles': NO crea SVL.
+        - Productos con valoración 'real_time': Aplica lógica estándar o de kit.
+        - Productos con valoración 'manual': NO crea SVL.
         """
         self.ensure_one()
         svl_obj = self.env['stock.valuation.layer']
@@ -220,11 +223,9 @@ class CostAdjustment(models.Model):
         company_currency = self.company_id.currency_id
 
         for line in self.line_ids:
-            product = line.product_id
-            # Solo procesar SVL para productos con valoración 'real_time'
-            # (Cubre Almacenables Correctos y Kits Almacenables)
-            if product.product_valuation != 'real_time':
-                _logger.info(f"Producto {product.name} (valoración: {product.product_valuation}) no tiene valoración automatizada. Omitiendo creación de SVL para ajuste {self.name}.")
+            # Solo procesar SVL para productos con valoración automatizada
+            if line.product_id.product_valuation != 'real_time':
+                _logger.info(f"Producto {line.product_id.name} (valoración: {line.product_id.product_valuation}) no tiene valoración automatizada. Omitiendo creación de SVL para ajuste {self.name}.")
                 continue
 
             # --- Lógica solo para productos con valuation='real_time' ---
@@ -236,34 +237,41 @@ class CostAdjustment(models.Model):
                 continue
 
             # Dentro de los 'real_time', diferenciar Kit de Estándar
-            if product.is_kit:
+            # Asumimos que un Kit Almacenable tiene valuation='real_time'
+            if line.product_id.is_kit:
                 # --- Lógica para Kits (Almacenables) ---
                 component_moves = line._find_kit_component_moves()
                 if not component_moves:
-                    _logger.warning(f"Kit {product.name}: No se encontraron movimientos de componentes para el ajuste {self.name}. No se crearán SVLs.")
+                    _logger.warning(f"Kit {line.product_id.name}: No se encontraron movimientos de componentes para el ajuste {self.name}. No se crearán SVLs.")
                     continue
 
                 original_svls = svl_obj.search([('stock_move_id', 'in', component_moves.ids)])
                 actual_component_valuation = abs(sum(original_svls.mapped('value')))
-                current_kit_total_cost = product.standard_price * line.quantity
+                current_kit_total_cost = line.product_id.standard_price * line.quantity
                 current_kit_total_cost_comp_curr = line.currency_id._convert(
                     current_kit_total_cost, company_currency, line.company_id, line.adjustment_id.date_adjustment)
 
                 comparison = float_compare(current_kit_total_cost_comp_curr, actual_component_valuation, precision_rounding=company_currency.rounding)
 
+                # Crear SVLs para componentes SOLO si la valoración original difiere del costo actual
                 if comparison != 0:
-                    _logger.info(f"Kit {product.name}: Valoración original componentes ({actual_component_valuation}) difiere del costo actual kit ({current_kit_total_cost_comp_curr}). Creando SVLs de ajuste.")
+                    _logger.info(f"Kit {line.product_id.name}: Valoración original componentes ({actual_component_valuation}) difiere del costo actual kit ({current_kit_total_cost_comp_curr}). Creando SVLs de ajuste.")
                     component_svl_vals = line._prepare_kit_component_svl_vals(adjustment_move, component_moves, adjustment_amount_comp_curr)
                     svl_vals_list.extend(component_svl_vals)
                 else:
-                     _logger.info(f"Kit {product.name}: Valoración original componentes ({actual_component_valuation}) coincide con costo actual kit ({current_kit_total_cost_comp_curr}). No se crearán SVLs de ajuste.")
+                     _logger.info(f"Kit {line.product_id.name}: Valoración original componentes ({actual_component_valuation}) coincide con costo actual kit ({current_kit_total_cost_comp_curr}). No se crearán SVLs de ajuste.")
             else:
                 # --- Lógica para Productos Estándar (Almacenables, no Kit) ---
-                standard_svl_vals = line._prepare_standard_product_svl_vals(adjustment_move, adjustment_amount_comp_curr)
-                if standard_svl_vals:
-                    svl_vals_list.append(standard_svl_vals)
+                # Solo si type es 'product' (redundante si valuation es 'real_time'?)
+                if line.product_id.product_type == 'product':
+                    standard_svl_vals = line._prepare_standard_product_svl_vals(adjustment_move, adjustment_amount_comp_curr)
+                    if standard_svl_vals:
+                        svl_vals_list.append(standard_svl_vals)
+                    else:
+                        _logger.warning(f"No se pudo preparar SVL estándar para la línea {line.id} (Ajuste: {self.name})")
                 else:
-                    _logger.warning(f"No se pudo preparar SVL estándar para la línea {line.id} (Ajuste: {self.name})")
+                     _logger.warning(f"Producto {line.product_id.name} con valuation='real_time' pero tipo '{line.product_id.product_type}' no es manejado para SVL estándar.")
+
 
         if svl_vals_list:
             svl_obj.create(svl_vals_list)
@@ -282,12 +290,11 @@ class CostAdjustmentLine(models.Model):
     original_invoice_line_id = fields.Many2one('account.move.line', string='Línea de Factura Original', required=True, help="Línea específica de la factura original cuyo costo se ajustará.")
     product_id = fields.Many2one('product.product', string='Producto', related='original_invoice_line_id.product_id', store=True, readonly=True)
     is_kit = fields.Boolean(related='product_id.is_kit', string="Es Kit", store=True, readonly=True)
-    # Campo para saber si es almacenable (basado en tipo producto)
+    # Campo para saber si es almacenable (tipo 'product') - Usado en vista
     is_storable_product = fields.Boolean(string="Es Almacenable (Tipo)", compute='_compute_is_storable_product', store=True, readonly=True)
     # Campos relacionados para usar en lógica y vistas
     product_type = fields.Selection(related='product_id.type', store=True, readonly=True)
     product_valuation = fields.Selection(related='product_id.valuation', store=True, readonly=True)
-    # Campo is_storable de product.template (relacionado)
     product_is_storable = fields.Boolean(related='product_id.is_storable', string="Es Almacenable (Campo)", store=True, readonly=True)
 
     quantity = fields.Float(string='Cantidad Facturada', related='original_invoice_line_id.quantity', store=True, readonly=True)
@@ -389,38 +396,44 @@ class CostAdjustmentLine(models.Model):
 
             if product and company:
                  product_in_company = product.with_company(company)
-                 accounts_dict = product_in_company._get_product_accounts()
-                 acc_cogs = accounts_dict.get('expense')
+                 accounts = product_in_company._get_product_accounts()
+                 acc_cogs = accounts.get('expense')
 
-                 # Determinar cuenta contrapartida según definiciones del usuario
-                 is_storable_flag = product_in_company.is_storable # Usar el campo relacionado
-                 valuation_method = product_in_company.product_valuation
+                 # Lógica final basada en definiciones del usuario
                  prod_type = product_in_company.product_type
+                 prod_valuation = product_in_company.product_valuation
+                 prod_is_storable = product_in_company.is_storable # Campo related
 
-                 _logger.debug(f"Calculando Cuentas para: {product.name} | Tipo: {prod_type} | Almacenable(is_storable): {is_storable_flag} | Valoración: {valuation_method}")
+                 _logger.debug(f"Compute Accounts - Prod: {product.name}, Type: {prod_type}, Valuation: {prod_valuation}, IsStorable: {prod_is_storable}")
 
-                 if valuation_method == 'real_time' and prod_type == 'consu' and not is_storable_flag:
-                     # Caso: Almacenable Mal Configurado
-                     acc_contra = accounts_dict.get('stock_valuation')
-                     _logger.debug(f"  -> Caso: Mal Configurado. Contrapartida: Valoración ({acc_contra.code if acc_contra else 'N/A'})")
-                 elif valuation_method == 'real_time':
-                     # Caso: Almacenable Correcto (Estándar o Kit)
-                     acc_contra = accounts_dict.get('stock_output')
-                     _logger.debug(f"  -> Caso: Almacenable Correcto. Contrapartida: Salida ({acc_contra.code if acc_contra else 'N/A'})")
-                 elif valuation_method == 'manual' and prod_type == 'consu':
-                     # Caso: Consumible Correcto (pero se ajusta)
-                     acc_contra = accounts_dict.get('stock_valuation')
-                     _logger.debug(f"  -> Caso: Consumible Correcto. Contrapartida: Valoración ({acc_contra.code if acc_contra else 'N/A'})")
+                 # Caso 1: Almacenable Mal Configurado
+                 if prod_type == 'consu' and prod_valuation == 'real_time' and not prod_is_storable:
+                     acc_contra = accounts.get('stock_valuation')
+                     _logger.debug(f"  -> Caso Mal Configurado: Contrapartida = Valoración ({acc_contra.code if acc_contra else 'N/A'})")
+                 # Caso 2: Almacenable Correcto (Estándar o Kit)
+                 elif prod_valuation == 'real_time':
+                     acc_contra = accounts.get('stock_output')
+                     _logger.debug(f"  -> Caso Almacenable Correcto: Contrapartida = Salida ({acc_contra.code if acc_contra else 'N/A'})")
+                 # Caso 3: Consumible Correcto (que no debería seleccionarse, pero si sí, usa valoración)
+                 elif prod_type == 'consu' and prod_valuation == 'manual':
+                     acc_contra = accounts.get('stock_valuation')
+                     _logger.debug(f"  -> Caso Consumible Correcto: Contrapartida = Valoración ({acc_contra.code if acc_contra else 'N/A'})")
+                 else:
+                     # Otros casos (ej. servicio si el domain fallara) - Podría ser error o usar fallback
+                     _logger.warning(f"  -> Caso no manejado explícitamente. Usando Valoración como fallback.")
+                     acc_contra = accounts.get('stock_valuation')
 
                  # Fallback a la categoría si falta alguna cuenta
                  categ = product_in_company.categ_id
                  if not acc_cogs: acc_cogs = categ.property_account_expense_categ_id
                  if not acc_contra:
-                     if valuation_method == 'real_time' and prod_type == 'consu' and not is_storable_flag:
+                     if prod_type == 'consu' and prod_valuation == 'real_time' and not prod_is_storable:
                          acc_contra = categ.property_stock_valuation_account_id
-                     elif valuation_method == 'real_time':
+                     elif prod_valuation == 'real_time':
                          acc_contra = categ.property_stock_account_output_categ_id
-                     elif valuation_method == 'manual' and prod_type == 'consu':
+                     elif prod_type == 'consu' and prod_valuation == 'manual':
+                         acc_contra = categ.property_stock_valuation_account_id
+                     else: # Fallback general si todo falla
                          acc_contra = categ.property_stock_valuation_account_id
 
             line.computed_account_cogs_id = acc_cogs
@@ -475,9 +488,9 @@ class CostAdjustmentLine(models.Model):
              _logger.warning(f"No se encontraron stock.move de componentes para la línea de factura {aml.id} (Kit: {self.product_id.name})")
         return component_moves
 
-    # Modificado para devolver la cuenta correcta según VALORACIÓN y TIPO/STORABLE
+    # Modificado para usar la lógica final de cuentas
     def _get_adjustment_accounts(self):
-        """ Obtiene las cuentas COGS y la contrapartida correcta. """
+        """ Obtiene las cuentas COGS y la contrapartida correcta (Salida o Valoración). """
         self.ensure_one()
         if not self.product_id:
             raise UserError(_("No se puede determinar cuentas sin un producto en la línea {}.").format(self.id))
@@ -486,31 +499,28 @@ class CostAdjustmentLine(models.Model):
         accounts = product._get_product_accounts()
         acc_cogs = accounts.get('expense')
         acc_contra = False
-        valuation = product.product_valuation
-        ptype = product.product_type
-        is_storable = product.is_storable # Usando el campo related añadido
+        prod_type = product.product_type
+        prod_valuation = product.product_valuation
+        prod_is_storable = product.is_storable # Campo related añadido
 
-        _logger.debug(f"Get Accounts - Prod: {product.name}, Type: {ptype}, Valuation: {valuation}, IsStorable: {is_storable}")
+        _logger.debug(f"Get Accounts - Prod: {product.name}, Type: {prod_type}, Valuation: {prod_valuation}, IsStorable: {prod_is_storable}")
 
-        # Lógica basada en las definiciones del usuario
-        if ptype == 'consu' and not is_storable and valuation == 'real_time':
-            # Almacenable Mal Configurado -> Usar Cuenta Valoración
+        # Lógica final basada en definiciones del usuario
+        # Caso 1: Almacenable Mal Configurado
+        if prod_type == 'consu' and prod_valuation == 'real_time' and not prod_is_storable:
             acc_contra = accounts.get('stock_valuation')
             _logger.debug(f"  -> Caso Mal Configurado: Contrapartida = Valoración ({acc_contra.code if acc_contra else 'N/A'})")
-        elif valuation == 'real_time':
-            # Almacenable Correcto (Estándar o Kit) -> Usar Cuenta Salida
+        # Caso 2: Almacenable Correcto (Estándar o Kit)
+        elif prod_valuation == 'real_time':
             acc_contra = accounts.get('stock_output')
             _logger.debug(f"  -> Caso Almacenable Correcto: Contrapartida = Salida ({acc_contra.code if acc_contra else 'N/A'})")
-        elif ptype == 'consu' and valuation == 'manual':
-            # Consumible Correcto -> Usar Cuenta Valoración (según última decisión implícita)
-            # Si no se quisieran ajustar, se debería filtrar antes o lanzar error aquí.
+        # Caso 3: Consumible Correcto (No debería ser seleccionable, pero si lo es, usa Valoración)
+        elif prod_type == 'consu' and prod_valuation == 'manual':
             acc_contra = accounts.get('stock_valuation')
             _logger.debug(f"  -> Caso Consumible Correcto: Contrapartida = Valoración ({acc_contra.code if acc_contra else 'N/A'})")
         else:
-             _logger.warning(f"Combinación no esperada para obtener cuentas de ajuste: Producto {product.name}, Tipo {ptype}, Valoración {valuation}, Almacenable {is_storable}")
-             # Fallback genérico a valoración por si acaso
-             acc_contra = accounts.get('stock_valuation')
-
+            _logger.warning(f"  -> Combinación Tipo/Valoración/Almacenable no manejada explícitamente: {prod_type}/{prod_valuation}/{prod_is_storable}. Usando Valoración como fallback.")
+            acc_contra = accounts.get('stock_valuation')
 
         # Fallback a la categoría si falta alguna cuenta
         categ = product.categ_id
@@ -519,16 +529,15 @@ class CostAdjustmentLine(models.Model):
             _logger.debug(f"  -> Usando COGS de Categoría: {acc_cogs.code if acc_cogs else 'N/A'}")
         if not acc_contra:
             _logger.debug(f"  -> Buscando contrapartida fallback en categoría...")
-            if ptype == 'consu' and not is_storable and valuation == 'real_time':
-                 acc_contra = categ.property_stock_valuation_account_id
-            elif valuation == 'real_time':
-                 acc_contra = categ.property_stock_account_output_categ_id
-            elif ptype == 'consu' and valuation == 'manual':
-                 acc_contra = categ.property_stock_valuation_account_id
+            if prod_type == 'consu' and prod_valuation == 'real_time' and not prod_is_storable:
+                acc_contra = categ.property_stock_valuation_account_id
+            elif prod_valuation == 'real_time':
+                acc_contra = categ.property_stock_account_output_categ_id
+            else: # Consumible manual o fallback
+                acc_contra = categ.property_stock_valuation_account_id
             _logger.debug(f"  -> Contrapartida Fallback: {acc_contra.code if acc_contra else 'N/A'}")
 
-
-        # Validar que se encontraron ambas cuentas necesarias
+        # Validación final
         if not acc_cogs or not acc_contra:
              error_msg = _("No se pudieron determinar las cuentas requeridas para el ajuste del producto '{}' (Categoría: {}). ".format(product.display_name, categ.display_name))
              if not acc_cogs: error_msg += _("Falta cuenta de Gasto/COGS. ")
@@ -537,10 +546,9 @@ class CostAdjustmentLine(models.Model):
              _logger.error(f"Error Cuentas Ajuste: {error_msg}")
              raise UserError(error_msg)
 
-        _logger.debug(f"  > Cuentas Finales: COGS={acc_cogs.code}, Contrapartida={acc_contra.code}")
+        _logger.debug(f"  -> Cuentas Finales: COGS={acc_cogs.code}, Contrapartida={acc_contra.code}")
         return acc_cogs, acc_contra
 
-    # Usa _get_adjustment_accounts que ahora devuelve la cuenta correcta
     def _prepare_adjustment_move_lines_vals(self, move_currency):
         # (Sin cambios)
         self.ensure_one()
@@ -573,7 +581,7 @@ class CostAdjustmentLine(models.Model):
         return vals_list
 
     def _prepare_standard_product_svl_vals(self, adjustment_move, adjustment_amount_comp_curr):
-         # Solo aplica a productos con valoración real_time y no kits
+         # (Sin cambios)
          self.ensure_one()
          if self.product_id.product_valuation != 'real_time' or self.product_id.is_kit: return {}
          stock_move = self._find_original_stock_move()
@@ -601,7 +609,7 @@ class CostAdjustmentLine(models.Model):
          }
 
     def _prepare_kit_component_svl_vals(self, adjustment_move, component_moves, kit_adjustment_total_comp_curr):
-        # Solo aplica a kits con valoración real_time
+        # (Sin cambios)
         self.ensure_one()
         if not self.product_id.is_kit or self.product_id.product_valuation != 'real_time': return []
 
