@@ -9,11 +9,7 @@
             <field name="arch" type="xml">
 
                 <xpath expr="//header" position="inside">
-                    <button name="action_open_associate_cfdi_wizard" string="Asociar CFDI Original"            type="object"                             class="btn-primary"                       help="Abre un asistente para seleccionar y asociar un archivo XML de CFDI (timbrado externamente) a este asiento." attrs="{'invisible': ['|',  ('state', '!=', 'posted'),
-                                                '|',  ('l10n_mx_edi_cfdi_state', '=', 'sent'),
-                                                    ('move_type', 'not in', ('out_invoice', 'entry'))
-                                               ]
-                                   }"
+                    <button name="action_open_associate_cfdi_wizard" string="Asociar CFDI Original"            type="object"                             class="btn-primary"                       help="Abre un asistente para seleccionar y asociar un archivo XML de CFDI (timbrado externamente) a este asiento." invisible="state != 'posted' or l10n_mx_edi_cfdi_state == 'sent' or move_type not in ('out_invoice', 'entry')"
                             />
                     </xpath>
 
