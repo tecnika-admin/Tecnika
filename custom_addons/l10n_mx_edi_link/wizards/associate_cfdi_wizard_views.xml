@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="view_custom_l10n_mx_edi_link_associate_cfdi_wizard_form" model="ir.ui.view">
+            <field name="name">custom_l10n_mx_edi_link.associate_cfdi_wizard.form</field>
+            <field name="model">custom_l10n_mx_edi_link.associate_cfdi_wizard</field>
+            <field name="arch" type="xml">
+                <form string="Asociar CFDI Original Externo">
+                    <sheet>
+                        <p class="oe_grey" style="margin-bottom: 16px;">
+                            Seleccione el archivo XML (previamente adjuntado a este asiento contable)
+                            que corresponde al CFDI timbrado externamente para este documento.
+                            El sistema extraerá el UUID (Folio Fiscal), lo validará y actualizará
+                            la información del asiento contable si todo es correcto.
+                        </p>
+                        <group>
+                            <group>
+                                <field name="move_id" readonly="1" options="{'no_open': True}"/>
+                            </group>
+                            <group>
+                                <field name="attachment_id"
+                                       required="1"
+                                       options="{'no_create': True, 'no_create_edit': True}"
+                                       domain="[('res_model', '=', 'account.move'), ('res_id', '=', move_id), ('name', '=ilike', '%.xml')]"/>
+                            </group>
+                        </group>
+                         </sheet>
+                    <footer>
+                        <button name="action_associate_cfdi"
+                                string="Asociar CFDI"
+                                type="object"
+                                class="btn-primary"
+                                data-hotkey="q"/>
+                        <button string="Cancelar"
+                                class="btn-secondary"
+                                special="cancel"
+                                data-hotkey="z"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        </data>
+</odoo>

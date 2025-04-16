@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="view_move_form_inherit_custom_l10n_mx_edi_link" model="ir.ui.view">
+            <field name="name">account.move.form.inherit.l10n.mx.edi.link</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_form"/>
+            <field name="arch" type="xml">
+
+                <xpath expr="//header" position="inside">
+                    <button name="action_open_associate_cfdi_wizard" string="Asociar CFDI Original"            type="object"                             class="btn-primary"                       help="Abre un asistente para seleccionar y asociar un archivo XML de CFDI (timbrado externamente) a este asiento." attrs="{'invisible': ['|',  ('state', '!=', 'posted'),
+                                                '|',  ('l10n_mx_edi_cfdi_state', '=', 'sent'),
+                                                    ('move_type', 'not in', ('out_invoice', 'entry'))
+                                               ]
+                                   }"
+                            />
+                    </xpath>
+
+                </field>
+        </record>
+
+    </data>
+</odoo>
