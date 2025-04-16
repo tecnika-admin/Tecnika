@@ -125,8 +125,8 @@ class CostAdjustment(models.Model):
         for line in self.line_ids:
             product = line.product_id
             # Condición específica para "Almacenable Mal Configurado" según definición del usuario
-            # (type='consu', valuation='real_time', is_storable=False)
-            if product.product_type == 'consu' and product.product_valuation == 'real_time' and not product.is_storable:
+            # (type='consu', valuation='real_time', is_storable=False, no es kit)
+            if product.product_type == 'consu' and product.product_valuation == 'real_time' and not product.is_storable and not product.is_kit:
                  products_to_archive |= product
 
         if products_to_archive:
@@ -492,8 +492,8 @@ class CostAdjustmentLine(models.Model):
         _logger.debug(f"Get Accounts - Prod: {product.name}, Type: {prod_type}, Valuation: {prod_valuation}, IsStorable: {prod_is_storable}")
 
         # Lógica final basada en definiciones del usuario:
-        # 1. Almacenable Mal Configurado: type='consu', valuation='real_time', is_storable=False
-        if prod_type == 'consu' and prod_valuation == 'real_time' and not prod_is_storable:
+        # 1. Almacenable Mal Configurado: type='consu', valuation='real_time', is_storable=False, no es kit
+        if prod_type == 'consu' and prod_valuation == 'real_time' and not prod_is_storable and not product.is_kit:
             acc_contra = acc_valuation
             _logger.debug(f"  -> Caso: Mal Configurado -> Contrapartida = Valoración ({acc_contra.code if acc_contra else 'N/A'})")
         # 2. Almacenable Correcto: valuation='real_time' (y no es el caso anterior)

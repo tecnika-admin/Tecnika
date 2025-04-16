@@ -60,9 +60,9 @@
                                                domain="[('move_id', '=', parent.original_invoice_id), ('display_type', '=', 'product'), ('product_id.valuation', '=', 'real_time')]"
                                                context="{'default_move_id': parent.original_invoice_id}"/>
                                         <field name="product_id" readonly="1" force_save="1"/>
-                                        <field name="product_type" invisible="1"/>
-                                        <field name="product_valuation" invisible="1"/>
-                                        <field name="product_is_storable" invisible="1"/>
+                                        <field name="product_type" invisible="1" optional="show"/>
+                                        <field name="product_valuation" invisible="1" optional="show"/>
+                                        <field name="product_is_storable" invisible="1" optional="show"/>
                                         <button icon="fa-exclamation-triangle text-danger"
                                                 title="¡Almacenable Mal Configurado! (Tipo 'consu', Valoración 'real_time', No Almacenable). El ajuste afectará la cuenta de valoración y se archivará el producto."
                                                 invisible="not (product_type == 'consu' and product_valuation == 'real_time' and product_is_storable == False)"
