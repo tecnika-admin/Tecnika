@@ -71,8 +71,7 @@
                                         <field name="original_cost_total" readonly="1"/>
                                         <field name="current_average_cost" readonly="1"/>
                                         <field name="adjustment_amount" readonly="1" sum="Total Ajuste"/>
-                                        <field name="analytic_distribution" readonly="1" optional="hide"/>
-                                        <field name="currency_id" invisible="1"/>
+                                        <field name="analytic_distribution" readonly="1" optional="hide"/> <field name="currency_id" invisible="1"/>
                                         <field name="computed_account_cogs_id" optional="hide" readonly="1"/>
                                         <field name="computed_account_contra_id" optional="hide" readonly="1"/> </list>
                                 </field>
@@ -91,7 +90,7 @@
             <field name="name">cost.adjustment.search</field>
             <field name="model">cost.adjustment</field>
              <field name="arch" type="xml">
-                <search string="Buscar Ajustes de Costo">
+                 <search string="Buscar Ajustes de Costo">
                     <field name="name" string="Referencia"/>
                     <field name="original_invoice_id" string="Factura Original"/>
                     <field name="date_adjustment"/>
