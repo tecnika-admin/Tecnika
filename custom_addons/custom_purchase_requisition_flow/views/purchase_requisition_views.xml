@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="view_purchase_requisition_form_custom_flow" model="ir.ui.view">
+            <field name="name">purchase.requisition.form.custom.flow</field>
+            <field name="model">purchase.requisition</field>
+            <field name="inherit_id" ref="purchase_requisition.view_purchase_requisition_form"/>
+            <field name="arch" type="xml">
+
+                <xpath expr="//field[@name='line_ids']/list/field[@name='product_qty']" position="after">
+                    <field name="qty_ordered_calc" string="Ordenado" readonly="1" optional="show"/>
+                    <field name="qty_fab" string="Fabricación" readonly="1" optional="show"/>
+                    <field name="qty_almmarc" string="Marca" optional="show"/>
+                    <field name="qty_almmay" string="Mayorista" optional="show"/>
+                    <field name="qty_almtec" string="Tecnika" readonly="1" optional="show"/>
+                    <field name="qty_cli" string="Cliente" optional="show"/>
+                </xpath>
+
+                 </field>
+        </record>
+
+    </data>
+</odoo>

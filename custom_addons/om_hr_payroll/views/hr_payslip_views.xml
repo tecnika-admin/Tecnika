@@ -8,7 +8,7 @@
             <field name="arch" type="xml">
                 <list string="Salary Structure" editable="bottom" decoration-info="total == 0">
                     <field name="category_id"/>
-                    <field name="employee_id" invisible="1"/>
+                    <field name="employee_id" column_invisible="1"/>
                     <field name="sequence"/>
                     <field name="name"/>
                     <field name="code"/>
@@ -16,7 +16,7 @@
                     <field name="rate"/>
                     <field name="amount"/>
                     <field name="total"/>
-                    <field name="amount_select" invisible="1"/>
+                    <field name="amount_select" column_invisible="1"/>
                 </list>
             </field>
         </record>
@@ -79,7 +79,7 @@
                     <field name="date_to"/>
                     <field name="state"/>
                     <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
-                    <field name="payslip_run_id" invisible="1"/>
+                    <field name="payslip_run_id" column_invisible="1"/>
                 </list>
             </field>
         </record>
@@ -187,7 +187,7 @@
                                         <field name="number_of_days" sum="Total Working Days"/>
                                         <field name="number_of_hours"/>
                                         <field name="contract_id"/>
-                                        <field name="sequence" invisible="True"/>
+                                        <field name="sequence" column_invisible="True"/>
                                     </list>
                                     <form string="Worked Day">
                                         <group col="4">
@@ -207,7 +207,7 @@
                                         <field name="code"/>
                                         <field name="amount"/>
                                         <field name="contract_id"/>
-                                        <field name="sequence" invisible="True"/>
+                                        <field name="sequence" column_invisible="True"/>
                                     </list>
                                     <form string="Payslip Line">
                                         <group col="4">

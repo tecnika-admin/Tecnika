@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <menuitem
+            id="menu_custom_commission_report"
+            name="Reporte de Comisiones Personalizado"
+            parent="account.account_reports_management_menu" 
+            action="action_commission_report_wizard" sequence="100" groups="custom_commission_report.group_custom_commission_report_user" />
+            </data>
+</odoo>

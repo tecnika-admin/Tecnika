@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1"> <record id="seq_cost_adjustment" model="ir.sequence">
+            <field name="name">Secuencia de Ajuste de Costo</field>
+            <field name="code">cost.adjustment</field> <field name="prefix">CA/%(year)s/</field> <field name="padding">5</field> <field name="company_id" eval="False"/> <field name="implementation">standard</field>
+        </record>
+
+    </data>
+</odoo>

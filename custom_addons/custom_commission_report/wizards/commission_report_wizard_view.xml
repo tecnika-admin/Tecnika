@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="commission_report_wizard_form_view" model="ir.ui.view">
+            <field name="name">commission.report.wizard.form</field>
+            <field name="model">commission.report.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Generar Reporte de Comisiones">
+                    <group>
+                        <group string="Rango Fechas Factura">
+                            <field name="date_invoice_from"/>
+                            <field name="date_invoice_to"/>
+                        </group>
+                        <group string="Rango Fechas Pago">
+                            <field name="date_payment_from"/>
+                            <field name="date_payment_to"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_generate_report" string="Generar Reporte" type="object" class="btn-primary" data-hotkey="q"/>
+                        <button string="Cancelar" class="btn-secondary" special="cancel" data-hotkey="z"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_commission_report_wizard" model="ir.actions.act_window">
+            <field name="name">Reporte de Comisiones Personalizado</field>
+            <field name="res_model">commission.report.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field> <field name="view_id" ref="commission_report_wizard_form_view"/>
+        </record>
+
+    </data>
+</odoo>

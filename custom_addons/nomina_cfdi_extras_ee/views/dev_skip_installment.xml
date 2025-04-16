@@ -84,13 +84,13 @@
             <search string="Buscar saltos de deducciones">
             	<field name="employee_id" operator="child_of"/>
                 <field name="user_id"/>
-                <field name="name" string="Salto de prestamo" filter_domain="[('name','ilike',self)]"/>
+                <field name="name" string="Saltar descuento" filter_domain="[('name','ilike',self)]"/>
                 <filter name="draft" string="Borrador" domain="[('state','=','draft')]" help="Draft Loan"/>
                 <filter name="done" string="Hecho" domain="[('state','=','done')]" help="Done Loan"/>
                 <field name="employee_id"/>
                 <group expand="0" string="Agrupar por">
                     <filter string="Empleados" name="employee_id" context="{'group_by':'employee_id'}"/>
-                    <filter string="Prestamos" name="loan_id" context="{'group_by':'loan_id'}"/>
+                    <filter string="Descuentos" name="loan_id" context="{'group_by':'loan_id'}"/>
                     <filter string="Estados" name="state" context="{'group_by':'state'}"/>
                 </group>
             </search>

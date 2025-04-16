@@ -163,7 +163,7 @@
     <menuitem name="Deducción recurrente" id="menu_employee_loan" parent="menu_main_employee_loan" action="action_employee_loan" groups="nomina_cfdi_ee.group_nomina_mx"/>
 
 	<record id="action_reporte_de_prestamos" model="ir.actions.server">
-        <field name="name">Reporte de Prestamos</field>
+        <field name="name">Reporte de Descuentos</field>
         <field name="type">ir.actions.server</field>
         <field name="state">code</field>
         <field name="model_id" ref="nomina_cfdi_extras_ee.model_employee_loan"/>
@@ -180,7 +180,7 @@
       />
 
 	<menuitem id="menu_action_reporte_de_prestamos"
-            name="Reporte de Prestamos"
+            name="Reporte de Descuentos"
             action="action_reporte_de_prestamos"
             parent="menu_main_reportes"
             groups="nomina_cfdi_ee.group_nomina_mx"

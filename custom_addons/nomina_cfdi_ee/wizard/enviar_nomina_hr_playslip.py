@@ -42,14 +42,16 @@ class EnviarNomina(models.TransientModel):
                       mail = payslip.employee_id.work_email
                if not mail:continue
                attachment_ids=[]
+               template.attachment_ids = None
                domain = [
                          ('res_id', '=', payslip.id),
                          ('res_model', '=', payslip._name),
                          ('name', '=', payslip.number.replace('/', '_') + '.xml')]
                xml_file = self.env['ir.attachment'].search(domain, limit=1)
                if xml_file:
-                  attachment_ids.append(xml_file.id)
-               if attachment_ids:
-                  template.attachment_ids = [(6, 0, attachment_ids)]
+                   new_xml_file = xml_file.copy()
+                   template.attachment_ids = [(4, new_xml_file.id)]
+
                template.send_mail(payslip.id, force_send=True,email_values={'email_to': mail})
+               template.attachment_ids = None
         return True

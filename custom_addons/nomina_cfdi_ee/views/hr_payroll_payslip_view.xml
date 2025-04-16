@@ -34,12 +34,13 @@
                             </group>
                         </group>
                 </page>
-                <page name="info_cdfi" string="Información adicional" invisible="company_cfdi != True">
+                <page name="info_aditional" string="Información adicional" invisible="company_cfdi != True">
                         <group cols="4">
                             <group string="Dias">
                                 <field name="dias_pagar"/>
                                 <field name="imss_dias"/>
                                 <field name="dias_infonavit"/>
+                                <field name="dias_pagar_incapacidad"/>
                             </group>
                             <group string="Procesamiento">
                                 <field name="concepto_periodico"/>
@@ -218,7 +219,7 @@
         <field name="inherit_id" ref="om_hr_payroll.view_hr_payslip_tree" />
         <field name="arch" type="xml">
             <field name="state" position="before">
-                <field name="company_cfdi" invisible="1"/>
+                <field name="company_cfdi" column_invisible="1"/>
                 <field name="total_nom" invisible="company_cfdi != True"/>
                 <field name="estado_factura" string="Estado CFDI" invisible="company_cfdi != True"/>
             </field>
