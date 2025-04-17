@@ -20,8 +20,8 @@ class AssociateCfdiWizard(models.TransientModel):
     extrae y valida el UUID (Folio Fiscal), actualiza el asiento contable
     y crea el registro correspondiente en l10n_mx_edi.document.
     """
-    # Nombre técnico del modelo del wizard (debe coincidir con security/ir.model.access.csv)
-    _name = 'custom_l10n_mx_edi_link.associate_cfdi_wizard'
+    # Nombre técnico del modelo del wizard (nombre de módulo corregido)
+    _name = 'l10n_mx_edi_link.associate_cfdi_wizard'
     # Descripción del modelo que aparece en la interfaz de Odoo
     _description = 'Asistente para Asociar CFDI XML Externo'
 

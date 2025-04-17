@@ -2,9 +2,9 @@
 <odoo>
     <data>
 
-        <record id="view_custom_l10n_mx_edi_link_associate_cfdi_wizard_form" model="ir.ui.view">
-            <field name="name">custom_l10n_mx_edi_link.associate_cfdi_wizard.form</field>
-            <field name="model">custom_l10n_mx_edi_link.associate_cfdi_wizard</field>
+        <record id="view_associate_cfdi_wizard_form" model="ir.ui.view">
+            <field name="name">l10n_mx_edi_link.associate_cfdi_wizard.form</field>
+            <field name="model">l10n_mx_edi_link.associate_cfdi_wizard</field>
             <field name="arch" type="xml">
                 <form string="Asociar CFDI Original Externo">
                     <sheet>
@@ -41,5 +41,5 @@
             </field>
         </record>
 
-        </data>
+    </data>
 </odoo>
