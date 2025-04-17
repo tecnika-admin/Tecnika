@@ -29,28 +29,19 @@ class AssociateCfdiWizard(models.TransientModel):
     # Definición de Campos del Wizard
     # -------------------------------------------------------------------------
 
-    # Campo para almacenar el ID del asiento contable activo (obtenido del contexto)
-    # Se hace readonly y default para que el usuario no lo cambie.
     move_id = fields.Many2one(
         comodel_name='account.move',
         string='Asiento Contable',
         required=True,
         readonly=True,
-        # Obtiene el ID del registro activo desde el contexto al abrir el wizard
         default=lambda self: self.env.context.get('active_id'),
         help="El asiento contable (factura, complemento de pago) al que se asociará el CFDI."
     )
 
-    # Campo Many2one para que el usuario seleccione el archivo XML adjunto.
-    # El dominio se filtra dinámicamente para mostrar solo los XML relevantes.
     attachment_id = fields.Many2one(
         comodel_name='ir.attachment',
         string='Archivo XML del CFDI',
         required=True,
-        # Dominio para filtrar adjuntos:
-        # 1. Deben pertenecer al modelo 'account.move'.
-        # 2. Deben estar asociados al 'move_id' actual del wizard.
-        # 3. El nombre del archivo debe terminar en '.xml' (insensible a mayúsculas/minúsculas).
         domain="[('res_model', '=', 'account.move'), ('res_id', '=', move_id), ('name', '=ilike', '%.xml')]",
         help="Seleccione el archivo XML del CFDI (que ya debe estar adjuntado al asiento contable) que desea asociar."
     )
@@ -61,217 +52,187 @@ class AssociateCfdiWizard(models.TransientModel):
 
     def _get_xml_uuid(self, xml_content_bytes):
         """
-        Parsea el contenido XML (en bytes) y extrae el UUID del nodo TimbreFiscalDigital.
-        Maneja los namespaces comunes de CFDI 4.0.
+        Parses the XML content (bytes) and extracts the UUID from the TimbreFiscalDigital node.
+        Handles common CFDI 4.0 namespaces.
         Args:
-            xml_content_bytes (bytes): Contenido binario del archivo XML.
+            xml_content_bytes (bytes): Binary content of the XML file.
         Returns:
-            str: El UUID encontrado (en mayúsculas y sin espacios extra).
+            str: The found UUID (uppercase, stripped).
         Raises:
-            UserError: Si el XML está mal formado, no contiene los nodos esperados
-                       (Complemento, TimbreFiscalDigital) o el atributo UUID.
+            UserError: If XML is malformed, expected nodes (Complemento, TimbreFiscalDigital)
+                       or the UUID attribute are missing.
         """
         try:
-            # Parsea el XML desde los bytes
             root = ET.fromstring(xml_content_bytes)
-
-            # Define los namespaces esperados. Es crucial para encontrar los nodos.
-            # Pueden variar ligeramente si el CFDI usa otras versiones o addendas.
             namespaces = {
-                'cfdi': 'http://www.sat.gob.mx/cfd/4',        # Namespace principal CFDI 4.0
-                'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital' # Namespace del Timbre Fiscal Digital
+                'cfdi': 'http://www.sat.gob.mx/cfd/4',
+                'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital'
             }
-
-            # Busca el nodo Complemento usando el namespace cfdi
             complemento_node = root.find('.//cfdi:Complemento', namespaces)
             if complemento_node is None:
-                # Intenta buscar sin namespace como fallback (menos probable para CFDI estándar)
-                complemento_node = root.find('.//Complemento')
+                complemento_node = root.find('.//Complemento') # Fallback
                 if complemento_node is None:
-                    _logger.warning(f"No se encontró el nodo 'cfdi:Complemento' en el XML del adjunto ID {self.attachment_id.id}.")
-                    raise UserError(_("El archivo XML no parece ser un CFDI válido, ya que no contiene el nodo 'Complemento'."))
+                    _logger.warning(f"Node 'cfdi:Complemento' not found in XML for attachment ID {self.attachment_id.id}.")
+                    raise UserError(_("The XML file does not seem to be a valid CFDI, as it lacks the 'Complemento' node."))
 
-            # Busca el nodo TimbreFiscalDigital dentro del Complemento, usando el namespace tfd
             tfd_node = complemento_node.find('.//tfd:TimbreFiscalDigital', namespaces)
             if tfd_node is None:
-                 # Intenta buscar sin namespace como fallback
-                 tfd_node = complemento_node.find('.//TimbreFiscalDigital')
+                 tfd_node = complemento_node.find('.//TimbreFiscalDigital') # Fallback
                  if tfd_node is None:
-                    _logger.warning(f"No se encontró el nodo 'tfd:TimbreFiscalDigital' dentro de 'Complemento' en el XML del adjunto ID {self.attachment_id.id}.")
-                    raise UserError(_("El archivo XML no contiene el nodo 'TimbreFiscalDigital' dentro del 'Complemento'. No se puede extraer el UUID."))
+                    _logger.warning(f"Node 'tfd:TimbreFiscalDigital' not found within 'Complemento' in XML for attachment ID {self.attachment_id.id}.")
+                    raise UserError(_("The XML file does not contain the 'TimbreFiscalDigital' node within 'Complemento'. Cannot extract UUID."))
 
-            # Extrae el valor del atributo UUID del nodo TimbreFiscalDigital
             uuid = tfd_node.get('UUID')
             if not uuid:
-                _logger.warning(f"El nodo 'tfd:TimbreFiscalDigital' no tiene el atributo 'UUID' en el XML del adjunto ID {self.attachment_id.id}.")
-                raise UserError(_("No se encontró el atributo 'UUID' en el nodo 'TimbreFiscalDigital'."))
+                _logger.warning(f"Node 'tfd:TimbreFiscalDigital' lacks 'UUID' attribute in XML for attachment ID {self.attachment_id.id}.")
+                raise UserError(_("Attribute 'UUID' not found in the 'TimbreFiscalDigital' node."))
 
-            # Limpia y retorna el UUID
             clean_uuid = uuid.strip().upper()
-            _logger.info(f"UUID extraído del adjunto ID {self.attachment_id.id} para el asiento ID {self.move_id.id}: {clean_uuid}")
+            _logger.info(f"UUID extracted from attachment ID {self.attachment_id.id} for move ID {self.move_id.id}: {clean_uuid}")
             return clean_uuid
 
         except ET.ParseError as e:
-            _logger.error(f"Error de parseo XML para adjunto ID {self.attachment_id.id}: {e}")
-            raise UserError(_("El archivo XML seleccionado está mal formado o corrupto. Verifique el archivo.\nDetalle técnico: %s", e))
+            _logger.error(f"XML parse error for attachment ID {self.attachment_id.id}: {e}")
+            raise UserError(_("The selected XML file is malformed or corrupt. Please check the file.\nTechnical detail: %s", e))
         except Exception as e:
-            _logger.error(f"Error inesperado procesando XML del adjunto ID {self.attachment_id.id}: {e}", exc_info=True)
-            raise UserError(_("Ocurrió un error inesperado al procesar el archivo XML: %s", e))
+            _logger.error(f"Unexpected error processing XML for attachment ID {self.attachment_id.id}: {e}", exc_info=True)
+            raise UserError(_("An unexpected error occurred while processing the XML file: %s", e))
 
     def _check_duplicate_uuid(self, uuid_to_check, current_move_id):
         """
-        Verifica si el UUID extraído ya está asociado a otro asiento contable en Odoo.
+        Checks if the extracted UUID is already associated with another account move in Odoo.
         Args:
-            uuid_to_check (str): El UUID a verificar.
-            current_move_id (int): El ID del asiento contable actual (para excluirlo de la búsqueda).
+            uuid_to_check (str): The UUID to check.
+            current_move_id (int): The ID of the current move (to exclude it from search).
         Raises:
-            ValidationError: Si el UUID ya existe en otro asiento contable (no cancelado).
+            ValidationError: If the UUID already exists in another (non-cancelled) move.
         """
         if not uuid_to_check:
-            # Esta validación no debería ocurrir si _get_xml_uuid funcionó, pero es una salvaguarda.
-            raise ValidationError(_("No se proporcionó un UUID para verificar duplicados."))
+            raise ValidationError(_("No UUID provided to check for duplicates."))
 
-        # Define el dominio de búsqueda
         domain = [
-            ('l10n_mx_edi_cfdi_uuid', '=', uuid_to_check), # Busca asientos con el mismo UUID
-            ('id', '!=', current_move_id),                # Excluye el asiento actual
-            ('state', '!=', 'cancel'),                    # Excluye asientos cancelados
+            ('l10n_mx_edi_cfdi_uuid', '=', uuid_to_check),
+            ('id', '!=', current_move_id),
+            ('state', '!=', 'cancel'),
         ]
-        # Realiza la búsqueda
         existing_move = self.env['account.move'].search(domain, limit=1)
 
-        # Si se encuentra un asiento existente con ese UUID
         if existing_move:
-            _logger.warning(f"Intento de asociar UUID duplicado '{uuid_to_check}' al asiento ID {current_move_id}. "
-                            f"UUID ya existe en el asiento ID {existing_move.id} ('{existing_move.name}').")
-            # Lanza un error de validación claro para el usuario
+            _logger.warning(f"Attempt to associate duplicate UUID '{uuid_to_check}' to move ID {current_move_id}. "
+                            f"UUID already exists on move ID {existing_move.id} ('{existing_move.name}').")
             raise ValidationError(
-                _("El UUID '%s' extraído de este XML ya está asociado al asiento contable '%s' (ID: %d). "
-                  "No puede asociar el mismo CFDI a múltiples asientos.") %
+                _("The UUID '%s' extracted from this XML is already associated with the journal entry '%s' (ID: %d). "
+                  "You cannot associate the same CFDI with multiple entries.") %
                 (uuid_to_check, existing_move.name or f"ID {existing_move.id}", existing_move.id)
             )
-        _logger.info(f"Validación de duplicado superada para UUID '{uuid_to_check}' y asiento ID {current_move_id}.")
-
+        _logger.info(f"Duplicate check passed for UUID '{uuid_to_check}' and move ID {current_move_id}.")
 
     # -------------------------------------------------------------------------
-    # Acción Principal del Wizard
+    # Wizard Main Action
     # -------------------------------------------------------------------------
 
     def action_associate_cfdi(self):
         """
-        Método principal ejecutado cuando el usuario hace clic en el botón de acción del wizard.
-        Realiza todo el proceso de asociación del CFDI.
+        Main method executed when the user clicks the wizard's action button.
+        Performs the entire CFDI association process.
         """
-        # Asegura que se esté ejecutando sobre un único registro del wizard
         self.ensure_one()
         move = self.move_id
         attachment = self.attachment_id
 
-        _logger.info(f"Iniciando proceso de asociación manual de CFDI para Asiento ID {move.id} ('{move.name}') "
-                     f"con Adjunto ID {attachment.id} ('{attachment.name}').")
+        _logger.info(f"Starting manual CFDI association process for Move ID {move.id} ('{move.name}') "
+                     f"with Attachment ID {attachment.id} ('{attachment.name}').")
 
-        # --- Validaciones Iniciales ---
+        # --- Initial Validations ---
         if not move:
-            # Esto no debería ocurrir si el default y readonly funcionan bien
-            raise UserError(_("No se pudo determinar el asiento contable activo. Cierre el asistente y vuelva a intentarlo."))
+            raise UserError(_("Could not determine the active journal entry. Please close the wizard and try again."))
         if not attachment:
-            # El campo es requerido, pero verificamos por si acaso.
-            raise UserError(_("Debe seleccionar un archivo XML de la lista para poder asociarlo."))
+            raise UserError(_("You must select an XML file from the list to associate."))
         if not attachment.datas:
-             _logger.error(f"El adjunto seleccionado ID {attachment.id} ('{attachment.name}') no tiene contenido (datas está vacío).")
-             raise UserError(_("El archivo adjunto seleccionado '%s' parece estar vacío o corrupto.") % attachment.name)
+             _logger.error(f"Selected attachment ID {attachment.id} ('{attachment.name}') has no content (datas is empty).")
+             raise UserError(_("The selected attachment file '%s' appears to be empty or corrupt.") % attachment.name)
 
-        # --- Procesamiento del XML ---
+        # --- XML Processing ---
         try:
-            # Decodifica el contenido del archivo de Base64 a bytes
             xml_content_bytes = base64.b64decode(attachment.datas)
         except (base64.binascii.Error, TypeError, ValueError) as e:
-            _logger.error(f"Error al decodificar Base64 del adjunto ID {attachment.id}: {e}")
-            raise UserError(_("No se pudo leer el contenido del archivo XML adjunto '%s'. "
-                              "Asegúrese de que el archivo no esté corrupto y sea un XML válido.") % attachment.name)
+            _logger.error(f"Base64 decoding error for attachment ID {attachment.id}: {e}")
+            raise UserError(_("Could not read the content of the attached XML file '%s'. "
+                              "Ensure the file is not corrupt and is a valid XML.") % attachment.name)
 
-        # Extrae el UUID del XML (maneja errores internos)
         extracted_uuid = self._get_xml_uuid(xml_content_bytes)
-
-        # Verifica si el UUID ya existe en otro asiento (maneja errores internos)
         self._check_duplicate_uuid(extracted_uuid, move.id)
 
-        # --- Actualización de Datos (en una transacción) ---
+        # --- Data Update (within a transaction) ---
         try:
-            # Usar un savepoint permite revertir solo esta parte si algo falla
-            # aunque Odoo generalmente maneja la transacción completa.
-            # with self.env.cr.savepoint(): # Opcional, Odoo maneja la transacción principal
-
-            # 1. Actualizar el Asiento Contable (account.move)
+            # 1. Update Journal Entry (account.move)
             move_vals_to_write = {
-                'l10n_mx_edi_cfdi_uuid': extracted_uuid,       # Establece el UUID extraído
-                'l10n_mx_edi_cfdi_state': 'sent',            # Marca el estado EDI como 'Enviado'
-                'l10n_mx_edi_cfdi_attachment_id': attachment.id, # Vincula el adjunto específico
+                'l10n_mx_edi_cfdi_uuid': extracted_uuid,
+                'l10n_mx_edi_cfdi_state': 'sent',
+                'l10n_mx_edi_cfdi_attachment_id': attachment.id,
             }
             move.write(move_vals_to_write)
-            _logger.info(f"Asiento ID {move.id} actualizado con UUID {extracted_uuid}, estado 'sent' y adjunto ID {attachment.id}.")
+            _logger.info(f"Move ID {move.id} updated with UUID {extracted_uuid}, state 'sent', and attachment ID {attachment.id}.")
 
-            # 2. Asegurar que el Adjunto (ir.attachment) esté correctamente vinculado
-            #    Esto es importante si el archivo se subió genéricamente al chatter antes.
+            # 2. Ensure Attachment (ir.attachment) is correctly linked
             if attachment.res_model != 'account.move' or attachment.res_id != move.id:
                 attachment.write({
                     'res_model': 'account.move',
                     'res_id': move.id,
                 })
-                _logger.info(f"Adjunto ID {attachment.id} re-vinculado explícitamente al Asiento ID {move.id}.")
+                _logger.info(f"Attachment ID {attachment.id} explicitly re-linked to Move ID {move.id}.")
 
-            # 3. Crear el registro en l10n_mx_edi.document
-            #    Este modelo rastrea los documentos EDI generados o asociados.
-            #    Verificamos si ya existe uno para evitar duplicados accidentales aquí también.
-            edi_doc_domain = [
-                ('move_id', '=', move.id),
-                # Podríamos buscar por UUID también, pero buscar por move/attachment es más directo
-                # ('l10n_mx_edi_cfdi_uuid', '=', extracted_uuid)
-            ]
+            # 3. Create l10n_mx_edi.document record
+            edi_doc_domain = [('move_id', '=', move.id)]
             existing_edi_doc = self.env['l10n_mx_edi.document'].search(edi_doc_domain, limit=1)
 
             if not existing_edi_doc:
+                # --- Determine correct state for l10n_mx_edi.document ---
+                edi_state = None
+                if move.move_type == 'out_invoice':
+                    edi_state = 'invoice_sent'
+                elif move.move_type == 'entry': # Assuming 'entry' is used for payments/REP
+                    edi_state = 'payment_sent'
+                else:
+                    # This case should ideally not happen due to button visibility rules
+                    _logger.error(f"Cannot determine EDI document state for move type '{move.move_type}' (Move ID: {move.id}).")
+                    raise UserError(_("Cannot determine the correct EDI document state for the move type '%s'.") % move.move_type)
+
+                _logger.info(f"Determined EDI document state: '{edi_state}' for move type '{move.move_type}'.")
+
                 edi_doc_vals = {
-                    'move_id': move.id,              # Vínculo al asiento contable
-                    'state': 'sent',                 # Estado del documento EDI ('Enviado')
-                    'sat_state': 'valid',            # Estado ante el SAT ('Válido', según acuerdo)
-                    'attachment_id': attachment.id,  # Vínculo al archivo XML
-                    # 'message': 'CFDI asociado manualmente por el usuario.', # Mensaje opcional
-                    # Nota: Revisa si hay otros campos obligatorios en l10n_mx_edi.document en v18
+                    'move_id': move.id,
+                    # Use the dynamically determined state
+                    'state': edi_state,
+                    'sat_state': 'valid', # As agreed
+                    'attachment_id': attachment.id,
+                    # Check if other mandatory fields exist in l10n_mx_edi.document in v18
                 }
                 self.env['l10n_mx_edi.document'].create(edi_doc_vals)
-                _logger.info(f"Registro l10n_mx_edi.document creado para Asiento ID {move.id}.")
+                _logger.info(f"Record l10n_mx_edi.document created for Move ID {move.id} with state '{edi_state}'.")
             else:
-                # Si ya existe, podríamos actualizarlo o simplemente registrar que ya estaba.
-                _logger.warning(f"Ya existía un registro l10n_mx_edi.document para Asiento ID {move.id} "
-                                f"(ID: {existing_edi_doc.id}). No se creó uno nuevo, pero se verificó la asociación.")
-                # Opcional: Actualizar el existente si es necesario
-                # existing_edi_doc.write({'state': 'sent', 'sat_state': 'valid', 'attachment_id': attachment.id})
+                _logger.warning(f"A record l10n_mx_edi.document already existed for Move ID {move.id} "
+                                f"(ID: {existing_edi_doc.id}). A new one was not created, but association was verified.")
 
-            # --- Finalización Exitosa ---
+            # --- Successful Completion ---
 
-            # 4. Registrar un mensaje en el chatter del asiento contable
+            # 4. Log a message in the journal entry's chatter
             success_message = _(
-                "Se asoció manualmente el CFDI Original desde el archivo adjunto.<br/>"
-                "<b>Archivo XML:</b> %s<br/>"
-                "<b>UUID (Folio Fiscal):</b> %s"
+                "Original CFDI manually associated from attached file.<br/>"
+                "<b>XML File:</b> %s<br/>"
+                "<b>UUID (Fiscal Folio):</b> %s"
             ) % (attachment.name, extracted_uuid)
             move.message_post(body=success_message)
-            _logger.info(f"Asociación manual de CFDI completada exitosamente para Asiento ID {move.id}.")
+            _logger.info(f"Manual CFDI association completed successfully for Move ID {move.id}.")
 
         except (UserError, ValidationError) as e:
-            # Errores de usuario o validación ya están preparados para mostrarse.
-            # El logger ya registró el detalle en los métodos _get_xml_uuid o _check_duplicate_uuid.
-            # Simplemente relanzamos el error para que Odoo lo muestre.
             raise e
         except Exception as e:
-            # Captura cualquier otro error inesperado durante las escrituras en BD.
-            _logger.exception(f"Error inesperado durante la actualización de la base de datos para el asiento ID {move.id} "
-                              f"al asociar el CFDI del adjunto ID {attachment.id}: {e}")
-            # Odoo maneja el rollback de la transacción automáticamente en caso de excepción.
-            raise UserError(_("Ocurrió un error inesperado al intentar guardar los cambios en la base de datos. "
-                              "La operación ha sido cancelada.\nDetalle técnico: %s") % e)
+            _logger.exception(f"Unexpected error during database update for move ID {move.id} "
+                              f"while associating CFDI from attachment ID {attachment.id}: {e}")
+            raise UserError(_("An unexpected error occurred while trying to save changes to the database. "
+                              "The operation has been cancelled.\nTechnical detail: %s") % e)
 
-        # Si todo fue exitoso, cierra el wizard.
+        # If everything was successful, close the wizard.
         return {'type': 'ir.actions.act_window_close'}
 
