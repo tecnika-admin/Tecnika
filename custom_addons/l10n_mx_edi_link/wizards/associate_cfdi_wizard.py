@@ -35,8 +35,8 @@ class AssociateCfdiWizard(models.TransientModel):
         string='Asiento Contable (Pago)',
         required=True,
         readonly=True,
-        default=lambda self: self.env.context.get('active_id'),
-        # Help text updated to reflect focus on payments
+        # Ajuste para priorizar el context key si se pasa explícitamente
+        default=lambda self: self.env.context.get('default_move_id', self.env.context.get('active_id')),
         help="El asiento contable (tipo 'entry') del pago al que se asociará el CFDI de Complemento de Pago."
     )
 
@@ -70,22 +70,15 @@ class AssociateCfdiWizard(models.TransientModel):
                 'cfdi': 'http://www.sat.gob.mx/cfd/4',
                 'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital'
             }
-            # Find Complemento node (still needed for REP)
             complemento_node = root.find('.//cfdi:Complemento', namespaces)
             if complemento_node is None:
                 complemento_node = root.find('.//Complemento') # Fallback
                 if complemento_node is None:
                     _logger.warning(f"Node 'cfdi:Complemento' not found in XML for attachment ID {self.attachment_id.id}.")
-                    # Check if it's a REP by looking for pagos:Pagos node directly? More robust check might be needed.
-                    # For now, assume Complemento is needed structure-wise even if empty for some CFDI types.
-                    # Let's check specifically for Pagos node if Complemento fails.
-                    pagos_node = root.find('.//{http://www.sat.gob.mx/Pagos20}Pagos') # Check for Pagos 2.0 namespace explicitly
+                    pagos_node = root.find('.//{http://www.sat.gob.mx/Pagos20}Pagos')
                     if not pagos_node:
                          raise UserError(_("The XML file does not seem to be a valid CFDI with Payments (Complemento or Pagos node missing)."))
-                    # If Pagos node exists, maybe TFD is directly under root? Unlikely standard. Let's stick to TFD within Complemento.
-                    # Re-raise the original error if Complemento is truly missing.
                     raise UserError(_("The XML file does not seem to be a valid CFDI, as it lacks the 'Complemento' node."))
-
 
             tfd_node = complemento_node.find('.//tfd:TimbreFiscalDigital', namespaces)
             if tfd_node is None:
@@ -152,14 +145,12 @@ class AssociateCfdiWizard(models.TransientModel):
         move = self.move_id
         attachment = self.attachment_id
 
-        # Log updated for payment focus
         _logger.info(f"Starting manual CFDI Payment Complement association process for Move ID {move.id} ('{move.name}') "
                      f"with Attachment ID {attachment.id} ('{attachment.name}').")
 
         # --- Initial Validations ---
         if not move:
             raise UserError(_("Could not determine the active journal entry. Please close the wizard and try again."))
-        # Added check for move_type consistency (although button should prevent wrong types)
         if move.move_type != 'entry':
              _logger.warning(f"Associate CFDI wizard called on move ID {move.id} with incorrect type '{move.move_type}'. Expected 'entry'.")
              raise UserError(_("This wizard is only intended for associating Payment Complements with Payment Journal Entries (Type 'entry')."))
@@ -169,7 +160,6 @@ class AssociateCfdiWizard(models.TransientModel):
         if not attachment.datas:
              _logger.error(f"Selected attachment ID {attachment.id} ('{attachment.name}') has no content (datas is empty).")
              raise UserError(_("The selected attachment file '%s' appears to be empty or corrupt.") % attachment.name)
-        # Ensure move date is set (should be true for posted moves)
         if not move.date:
              _logger.error(f"Move ID {move.id} does not have an Accounting Date set.")
              raise UserError(_("The associated journal entry (ID: %d) does not have an Accounting Date set. Cannot determine the datetime for the EDI document.") % move.id)
@@ -193,11 +183,12 @@ class AssociateCfdiWizard(models.TransientModel):
                 'l10n_mx_edi_cfdi_uuid': extracted_uuid,
                 'l10n_mx_edi_cfdi_state': 'sent',
                 'l10n_mx_edi_cfdi_attachment_id': attachment.id,
-                # Add SAT state to the move itself
-                'l10n_mx_edi_sat_state': 'valid',
+                # Use the CORRECT field name for SAT status on account.move
+                'l10n_mx_edi_cfdi_sat_state': 'valid',
             }
             move.write(move_vals_to_write)
-            _logger.info(f"Move ID {move.id} updated with UUID {extracted_uuid}, state 'sent', SAT state 'valid', and attachment ID {attachment.id}.")
+            # Log updated to include the correct field name
+            _logger.info(f"Move ID {move.id} updated with UUID {extracted_uuid}, state 'sent', CFDI SAT state 'valid', and attachment ID {attachment.id}.")
 
             # 2. Ensure Attachment (ir.attachment) is correctly linked
             if attachment.res_model != 'account.move' or attachment.res_id != move.id:
@@ -213,23 +204,19 @@ class AssociateCfdiWizard(models.TransientModel):
 
             if not existing_edi_doc:
                 # --- Set correct state for l10n_mx_edi.document (Payment) ---
-                # Logic simplified: always use 'payment_sent' as we only handle payments now
                 edi_state = 'payment_sent'
                 _logger.info(f"Using EDI document state: '{edi_state}' for payment complement.")
 
                 # --- Determine datetime for l10n_mx_edi.document ---
-                # Combine the move's date with the minimum time (00:00:00)
                 edi_datetime = datetime.datetime.combine(move.date, datetime.time.min)
                 _logger.info(f"Determined EDI document datetime: '{edi_datetime}' from move date '{move.date}'.")
 
 
                 edi_doc_vals = {
                     'move_id': move.id,
-                    # Use the fixed state for payments
                     'state': edi_state,
                     'sat_state': 'valid', # As agreed
                     'attachment_id': attachment.id,
-                    # Use the determined datetime based on move date
                     'datetime': edi_datetime,
                     # Check if other mandatory fields exist in l10n_mx_edi.document in v18
                 }
@@ -243,7 +230,6 @@ class AssociateCfdiWizard(models.TransientModel):
 
             # 4. Log a message in the journal entry's chatter
             success_message = _(
-                # Message updated for Payment Complement context
                 "Original CFDI de Pago (REP) asociado manualmente desde el archivo adjunto.<br/>"
                 "<b>Archivo XML:</b> %s<br/>"
                 "<b>UUID (Folio Fiscal):</b> %s"
