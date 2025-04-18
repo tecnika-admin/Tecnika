@@ -11,7 +11,7 @@
                 <xpath expr="//notebook" position="inside">
                     <page string="Facturas de Venta Relacionadas" name="related_customer_invoices">
                         <field name="invoice_ids" context="{'default_move_type': 'out_invoice'}">
-                            <tree>
+                            <list>
                                 <field name="name"/>
                                 <field name="partner_id"/>
                                 <field name="invoice_date"/>
@@ -19,7 +19,7 @@
                                 <field name="state"/>
                                 <field name="payment_state"/>
                                 <field name="move_type" invisible="1"/>
-                            </tree>
+                            </list>
                             </field>
                     </page>
                 </xpath>
