@@ -176,9 +176,11 @@ class AssociateCfdiWizard(models.TransientModel):
                 'l10n_mx_edi_cfdi_uuid': extracted_uuid,
                 'l10n_mx_edi_cfdi_state': 'sent',
                 'l10n_mx_edi_cfdi_attachment_id': attachment.id,
+                # Add SAT state to the move itself
+                'l10n_mx_edi_sat_state': 'valid',
             }
             move.write(move_vals_to_write)
-            _logger.info(f"Move ID {move.id} updated with UUID {extracted_uuid}, state 'sent', and attachment ID {attachment.id}.")
+            _logger.info(f"Move ID {move.id} updated with UUID {extracted_uuid}, state 'sent', SAT state 'valid', and attachment ID {attachment.id}.")
 
             # 2. Ensure Attachment (ir.attachment) is correctly linked
             if attachment.res_model != 'account.move' or attachment.res_id != move.id:
