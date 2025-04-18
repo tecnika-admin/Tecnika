@@ -51,21 +51,45 @@ class PurchaseRequisitionLine(models.Model):
         copy=False,
         help="Cantidad total recibida físicamente en el almacén de Tecnika MENOS la cantidad ya entregada al cliente."
     )
-    # CORREGIDO: Sintaxis de definición de qty_cli
     qty_cli = fields.Float(
         string="Cliente (Facturado)",
         compute='_compute_qty_cli',
         store=True,
-        readonly=True, # Corregido
-        copy=False, # Añadido por consistencia
-        digits='Product Unit of Measure', # Añadido por consistencia
-        help="Cantidad total facturada al cliente para este producto, calculada desde las facturas vinculadas." # Añadido help
-    ) # Paréntesis de cierre añadido
+        readonly=True,
+        copy=False,
+        digits='Product Unit of Measure',
+        help="Cantidad total facturada al cliente para este producto, calculada desde las facturas vinculadas."
+    )
 
     # --- Lógica de Cálculo con @api.depends ---
 
-    # Depende de las facturas vinculadas y sus líneas/estados
-    @api.depends('requisition_id.invoice_ids.state', 'requisition_id.invoice_ids.invoice_line_ids.quantity', 'requisition_id.invoice_ids.invoice_line_ids.product_id')
+    # CORREGIDO: Simplificar dependencia para qty_ordered_calc
+    @api.depends('requisition_id.purchase_ids.state', 'requisition_id.purchase_ids.order_line')
+    def _compute_qty_ordered_calc(self):
+        """Calcula la cantidad total ordenada en POs confirmadas."""
+        PurchaseOrderLine = self.env['purchase.order.line']
+        for line in self:
+            ordered_val = 0.0
+            if line.requisition_id and line.product_id:
+                # Filtrar POs relevantes directamente
+                relevant_po_ids = line.requisition_id.purchase_ids.filtered(lambda po: po.state == 'purchase').ids
+                if relevant_po_ids:
+                    domain = [
+                        ('order_id', 'in', relevant_po_ids),
+                        ('product_id', '=', line.product_id.id),
+                        # ('state', '=', 'purchase') # El estado ya se filtró en relevant_po_ids
+                    ]
+                    grouped_data = PurchaseOrderLine.read_group(
+                        domain=domain,
+                        fields=['product_qty:sum'],
+                        groupby=['product_id']
+                    )
+                    if grouped_data:
+                        ordered_val = grouped_data[0].get('product_qty', 0.0) or 0.0
+            line.qty_ordered_calc = ordered_val
+
+    # Dependencia simplificada para _compute_qty_cli
+    @api.depends('requisition_id.invoice_ids')
     def _compute_qty_cli(self):
         """Calcula la cantidad total facturada al cliente para este producto."""
         AccountMoveLine = self.env['account.move.line']
@@ -74,7 +98,6 @@ class PurchaseRequisitionLine(models.Model):
                 line.qty_cli = 0.0
                 continue
 
-            # Obtener IDs de las facturas de cliente vinculadas y publicadas
             linked_invoice_ids = line.requisition_id.invoice_ids.filtered(
                 lambda inv: inv.move_type == 'out_invoice' and inv.state == 'posted'
             ).ids
@@ -83,18 +106,16 @@ class PurchaseRequisitionLine(models.Model):
                 line.qty_cli = 0.0
                 continue
 
-            # Buscar las líneas de factura relevantes
             domain_inv_lines = [
                 ('move_id', 'in', linked_invoice_ids),
                 ('product_id', '=', line.product_id.id),
-                ('exclude_from_invoice_tab', '=', False), # Líneas estándar de factura
+                ('exclude_from_invoice_tab', '=', False),
             ]
 
-            # Usar read_group para sumar eficientemente la cantidad
             grouped_data = AccountMoveLine.read_group(
                 domain=domain_inv_lines,
                 fields=['quantity:sum'],
-                groupby=['product_id'] # Agrupar por producto
+                groupby=['product_id']
             )
 
             total_invoiced = 0.0
@@ -237,7 +258,7 @@ class PurchaseRequisitionLine(models.Model):
                     "- Almacén Marca: %(almmarc)s\n"
                     "- Almacén Mayorista: %(almmay)s\n"
                     "- Almacén Tecnika: %(almtec)s\n"
-                    "- Cliente (Facturado): %(cli)s\n" # Etiqueta actualizada
+                    "- Cliente (Facturado): %(cli)s\n"
                     "--------------------\n"
                     "Suma Actual: %(total_sum)s\n"
                     "Cantidad Ordenada: %(ordered)s\n\n"
