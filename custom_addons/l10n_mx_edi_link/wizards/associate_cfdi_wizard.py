@@ -4,6 +4,7 @@
 import base64
 import logging
 import xml.etree.ElementTree as ET # Para parsear XML
+import datetime # Import needed for time combination
 
 # Importaciones de Odoo
 from odoo import models, fields, api, _
@@ -151,6 +152,11 @@ class AssociateCfdiWizard(models.TransientModel):
         if not attachment.datas:
              _logger.error(f"Selected attachment ID {attachment.id} ('{attachment.name}') has no content (datas is empty).")
              raise UserError(_("The selected attachment file '%s' appears to be empty or corrupt.") % attachment.name)
+        # Ensure move date is set (should be true for posted moves)
+        if not move.date:
+             _logger.error(f"Move ID {move.id} does not have an Accounting Date set.")
+             raise UserError(_("The associated journal entry (ID: %d) does not have an Accounting Date set. Cannot determine the datetime for the EDI document.") % move.id)
+
 
         # --- XML Processing ---
         try:
@@ -200,12 +206,20 @@ class AssociateCfdiWizard(models.TransientModel):
 
                 _logger.info(f"Determined EDI document state: '{edi_state}' for move type '{move.move_type}'.")
 
+                # --- Determine datetime for l10n_mx_edi.document ---
+                # Combine the move's date with the minimum time (00:00:00)
+                edi_datetime = datetime.datetime.combine(move.date, datetime.time.min)
+                _logger.info(f"Determined EDI document datetime: '{edi_datetime}' from move date '{move.date}'.")
+
+
                 edi_doc_vals = {
                     'move_id': move.id,
                     # Use the dynamically determined state
                     'state': edi_state,
                     'sat_state': 'valid', # As agreed
                     'attachment_id': attachment.id,
+                    # Use the determined datetime based on move date
+                    'datetime': edi_datetime,
                     # Check if other mandatory fields exist in l10n_mx_edi.document in v18
                 }
                 self.env['l10n_mx_edi.document'].create(edi_doc_vals)
@@ -228,8 +242,10 @@ class AssociateCfdiWizard(models.TransientModel):
         except (UserError, ValidationError) as e:
             raise e
         except Exception as e:
+            # Log the exception with traceback for detailed debugging
             _logger.exception(f"Unexpected error during database update for move ID {move.id} "
                               f"while associating CFDI from attachment ID {attachment.id}: {e}")
+            # Provide a user-friendly error message, including the technical detail if possible
             raise UserError(_("An unexpected error occurred while trying to save changes to the database. "
                               "The operation has been cancelled.\nTechnical detail: %s") % e)
 
