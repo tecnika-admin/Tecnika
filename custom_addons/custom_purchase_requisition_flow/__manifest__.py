@@ -27,6 +27,7 @@
         'purchase_requisition', # Dependencia clave del módulo de Acuerdos de Compra
         'stock', # Necesario para acceder a stock.move
         'purchase_stock', # Necesario para el vínculo entre purchase.order.line y stock.move
+        'account',
         ],
 
     # always loaded
