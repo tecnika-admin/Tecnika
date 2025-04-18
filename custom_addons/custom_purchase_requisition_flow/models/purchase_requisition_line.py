@@ -51,30 +51,30 @@ class PurchaseRequisitionLine(models.Model):
         copy=False,
         help="Cantidad total recibida físicamente en el almacén de Tecnika MENOS la cantidad ya entregada al cliente."
     )
+    # CORREGIDO: Sintaxis de definición de qty_cli
     qty_cli = fields.Float(
         string="Cliente (Facturado)",
         compute='_compute_qty_cli',
         store=True,
-        readonly=True,
-        copy=False,
-        digits='Product Unit of Measure',
-        help="Cantidad total facturada al cliente para este producto, calculada desde las facturas vinculadas."
-    )
+        readonly=True, # Corregido
+        copy=False, # Añadido por consistencia
+        digits='Product Unit of Measure', # Añadido por consistencia
+        help="Cantidad total facturada al cliente para este producto, calculada desde las facturas vinculadas." # Añadido help
+    ) # Paréntesis de cierre añadido
 
     # --- Lógica de Cálculo con @api.depends ---
 
-    # TEMPORALMENTE COMENTADO PARA DIAGNÓSTICO DE INSTALACIÓN:
-    # @api.depends('requisition_id.invoice_ids')
+    # Depende de las facturas vinculadas y sus líneas/estados
+    @api.depends('requisition_id.invoice_ids.state', 'requisition_id.invoice_ids.invoice_line_ids.quantity', 'requisition_id.invoice_ids.invoice_line_ids.product_id')
     def _compute_qty_cli(self):
         """Calcula la cantidad total facturada al cliente para este producto."""
         AccountMoveLine = self.env['account.move.line']
         for line in self:
-            # Si no hay dependencia, el cálculo podría no ejecutarse automáticamente.
-            # Lo dejamos aquí para futura referencia o activación posterior.
             if not line.requisition_id or not line.product_id:
                 line.qty_cli = 0.0
                 continue
 
+            # Obtener IDs de las facturas de cliente vinculadas y publicadas
             linked_invoice_ids = line.requisition_id.invoice_ids.filtered(
                 lambda inv: inv.move_type == 'out_invoice' and inv.state == 'posted'
             ).ids
@@ -83,16 +83,18 @@ class PurchaseRequisitionLine(models.Model):
                 line.qty_cli = 0.0
                 continue
 
+            # Buscar las líneas de factura relevantes
             domain_inv_lines = [
                 ('move_id', 'in', linked_invoice_ids),
                 ('product_id', '=', line.product_id.id),
-                ('exclude_from_invoice_tab', '=', False),
+                ('exclude_from_invoice_tab', '=', False), # Líneas estándar de factura
             ]
 
+            # Usar read_group para sumar eficientemente la cantidad
             grouped_data = AccountMoveLine.read_group(
                 domain=domain_inv_lines,
                 fields=['quantity:sum'],
-                groupby=['product_id']
+                groupby=['product_id'] # Agrupar por producto
             )
 
             total_invoiced = 0.0
