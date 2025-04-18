@@ -9,6 +9,7 @@ import datetime # Import needed for time combination
 # Importaciones de Odoo
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError # Para errores y validaciones
+from odoo.tools import float_is_zero # Useful for checking amounts if needed later
 
 # Configuración del logger para registrar información y errores
 _logger = logging.getLogger(__name__)
@@ -18,8 +19,9 @@ class AssociateCfdiWizard(models.TransientModel):
     Asistente (Wizard) para asociar manualmente un archivo XML de Complemento de Pago (REP)
     externo a un registro de asiento contable de pago (tipo 'entry') existente.
     Permite al usuario seleccionar un archivo XML adjunto al asiento,
-    extrae y valida el UUID (Folio Fiscal), actualiza el asiento contable
-    y crea el registro correspondiente en l10n_mx_edi.document.
+    extrae y valida el UUID (Folio Fiscal), actualiza el asiento contable,
+    crea el registro correspondiente en l10n_mx_edi.document, e intenta
+    refrescar las facturas relacionadas.
     """
     # Nombre técnico del modelo del wizard
     _name = 'l10n_mx_edi_link.associate_cfdi_wizard'
@@ -53,17 +55,7 @@ class AssociateCfdiWizard(models.TransientModel):
     # -------------------------------------------------------------------------
 
     def _get_xml_uuid(self, xml_content_bytes):
-        """
-        Parses the XML content (bytes) and extracts the UUID from the TimbreFiscalDigital node.
-        Handles common CFDI 4.0 namespaces.
-        Args:
-            xml_content_bytes (bytes): Binary content of the XML file.
-        Returns:
-            str: The found UUID (uppercase, stripped).
-        Raises:
-            UserError: If XML is malformed, expected nodes (Complemento, TimbreFiscalDigital)
-                       or the UUID attribute are missing.
-        """
+        # (Código sin cambios)
         try:
             root = ET.fromstring(xml_content_bytes)
             namespaces = {
@@ -104,14 +96,7 @@ class AssociateCfdiWizard(models.TransientModel):
             raise UserError(_("An unexpected error occurred while processing the XML file: %s", e))
 
     def _check_duplicate_uuid(self, uuid_to_check, current_move_id):
-        """
-        Checks if the extracted UUID is already associated with another account move in Odoo.
-        Args:
-            uuid_to_check (str): The UUID to check.
-            current_move_id (int): The ID of the current move (to exclude it from search).
-        Raises:
-            ValidationError: If the UUID already exists in another (non-cancelled) move.
-        """
+        # (Código sin cambios)
         if not uuid_to_check:
             raise ValidationError(_("No UUID provided to check for duplicates."))
 
@@ -132,6 +117,35 @@ class AssociateCfdiWizard(models.TransientModel):
             )
         _logger.info(f"Duplicate check passed for UUID '{uuid_to_check}' and move ID {current_move_id}.")
 
+    def _find_reconciled_invoices(self, payment_move):
+        """
+        Finds customer invoices reconciled with the given payment move.
+        Args:
+            payment_move (account.move): The payment journal entry record.
+        Returns:
+            account.move: Recordset of related customer invoices.
+        """
+        # This wizard is transient, ensure_one() might not be needed but good practice
+        # self.ensure_one()
+        invoice_moves = self.env['account.move']
+
+        # Iterate through lines of the payment move that are receivable/payable
+        # and involved in reconciliation.
+        for line in payment_move.line_ids.filtered(lambda l: l.account_id.account_type in ('asset_receivable', 'liability_payable')):
+            # Get all partial reconciliations involving this line
+            partials = line.matched_debit_ids | line.matched_credit_ids
+
+            # For each partial reconciliation, find the 'other' line's move
+            for partial in partials:
+                # Determine which line in the partial reconciliation is NOT the current payment line
+                counterpart_line = partial.debit_move_id if partial.credit_move_id == line else partial.credit_move_id
+                # Check if the counterpart line's move is an invoice and not the payment itself
+                if counterpart_line.move_id != payment_move and counterpart_line.move_id.move_type == 'out_invoice':
+                    invoice_moves |= counterpart_line.move_id
+
+        # Return unique invoices found
+        return invoice_moves
+
     # -------------------------------------------------------------------------
     # Wizard Main Action
     # -------------------------------------------------------------------------
@@ -142,7 +156,7 @@ class AssociateCfdiWizard(models.TransientModel):
         Performs the CFDI (REP) association process for a payment journal entry.
         """
         self.ensure_one()
-        move = self.move_id
+        move = self.move_id # This is the payment move
         attachment = self.attachment_id
 
         _logger.info(f"Starting manual CFDI Payment Complement association process for Move ID {move.id} ('{move.name}') "
@@ -177,17 +191,17 @@ class AssociateCfdiWizard(models.TransientModel):
         self._check_duplicate_uuid(extracted_uuid, move.id)
 
         # --- Data Update (within a transaction) ---
+        edi_doc = None # Variable to store the created edi document
+        reconciled_invoices = self.env['account.move'] # Initialize empty recordset
         try:
             # 1. Update Journal Entry (account.move)
             move_vals_to_write = {
                 'l10n_mx_edi_cfdi_uuid': extracted_uuid,
                 'l10n_mx_edi_cfdi_state': 'sent',
                 'l10n_mx_edi_cfdi_attachment_id': attachment.id,
-                # Use the CORRECT field name for SAT status on account.move
-                'l10n_mx_edi_cfdi_sat_state': 'valid',
+                'l10n_mx_edi_cfdi_sat_state': 'valid', # Correct field name
             }
             move.write(move_vals_to_write)
-            # Log updated to include the correct field name
             _logger.info(f"Move ID {move.id} updated with UUID {extracted_uuid}, state 'sent', CFDI SAT state 'valid', and attachment ID {attachment.id}.")
 
             # 2. Ensure Attachment (ir.attachment) is correctly linked
@@ -203,31 +217,43 @@ class AssociateCfdiWizard(models.TransientModel):
             existing_edi_doc = self.env['l10n_mx_edi.document'].search(edi_doc_domain, limit=1)
 
             if not existing_edi_doc:
-                # --- Set correct state for l10n_mx_edi.document (Payment) ---
                 edi_state = 'payment_sent'
                 _logger.info(f"Using EDI document state: '{edi_state}' for payment complement.")
-
-                # --- Determine datetime for l10n_mx_edi.document ---
                 edi_datetime = datetime.datetime.combine(move.date, datetime.time.min)
                 _logger.info(f"Determined EDI document datetime: '{edi_datetime}' from move date '{move.date}'.")
-
 
                 edi_doc_vals = {
                     'move_id': move.id,
                     'state': edi_state,
-                    'sat_state': 'valid', # As agreed
+                    'sat_state': 'valid',
                     'attachment_id': attachment.id,
                     'datetime': edi_datetime,
-                    # Check if other mandatory fields exist in l10n_mx_edi.document in v18
                 }
-                self.env['l10n_mx_edi.document'].create(edi_doc_vals)
-                _logger.info(f"Record l10n_mx_edi.document created for Move ID {move.id} with state '{edi_state}'.")
+                # Create the document and store it
+                edi_doc = self.env['l10n_mx_edi.document'].create(edi_doc_vals)
+                _logger.info(f"Record l10n_mx_edi.document created (ID: {edi_doc.id}) for Move ID {move.id} with state '{edi_state}'.")
             else:
+                edi_doc = existing_edi_doc # Use the existing one if found
                 _logger.warning(f"A record l10n_mx_edi.document already existed for Move ID {move.id} "
-                                f"(ID: {existing_edi_doc.id}). A new one was not created, but association was verified.")
+                                f"(ID: {edi_doc.id}). A new one was not created, but association was verified.")
+
+            # --- Find reconciled invoices ---
+            if edi_doc: # Proceed only if we have an EDI document (new or existing)
+                reconciled_invoices = self._find_reconciled_invoices(move)
+                if reconciled_invoices:
+                    _logger.info(f"Payment Move ID {move.id} (REP UUID: {extracted_uuid}) is reconciled with Invoices: {reconciled_invoices.ids}")
+                    # --- Attempt to refresh reconciled invoices ---
+                    # Try calling the method that computes payment widget info
+                    _logger.info(f"Attempting to refresh payment info for invoices: {reconciled_invoices.ids}")
+                    if hasattr(reconciled_invoices, '_compute_payments_widget_to_reconcile_info'):
+                         reconciled_invoices._compute_payments_widget_to_reconcile_info()
+                         _logger.info(f"Called '_compute_payments_widget_to_reconcile_info' on reconciled invoices.")
+                    else:
+                         _logger.warning(f"Method '_compute_payments_widget_to_reconcile_info' not found on account.move. Unable to refresh invoice payment widget.")
+                else:
+                    _logger.info(f"Payment Move ID {move.id} has no reconciled customer invoices found.")
 
             # --- Successful Completion ---
-
             # 4. Log a message in the journal entry's chatter
             success_message = _(
                 "Original CFDI de Pago (REP) asociado manualmente desde el archivo adjunto.<br/>"
@@ -240,10 +266,8 @@ class AssociateCfdiWizard(models.TransientModel):
         except (UserError, ValidationError) as e:
             raise e
         except Exception as e:
-            # Log the exception with traceback for detailed debugging
             _logger.exception(f"Unexpected error during database update for move ID {move.id} "
                               f"while associating CFDI Payment Complement from attachment ID {attachment.id}: {e}")
-            # Provide a user-friendly error message, including the technical detail if possible
             raise UserError(_("An unexpected error occurred while trying to save changes to the database. "
                               "The operation has been cancelled.\nTechnical detail: %s") % e)
 
