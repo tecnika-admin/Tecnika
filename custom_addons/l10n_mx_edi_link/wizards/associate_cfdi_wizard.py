@@ -15,16 +15,16 @@ _logger = logging.getLogger(__name__)
 
 class AssociateCfdiWizard(models.TransientModel):
     """
-    Asistente (Wizard) para asociar manualmente un archivo CFDI XML externo
-    a un registro de asiento contable (account.move) existente.
+    Asistente (Wizard) para asociar manualmente un archivo XML de Complemento de Pago (REP)
+    externo a un registro de asiento contable de pago (tipo 'entry') existente.
     Permite al usuario seleccionar un archivo XML adjunto al asiento,
     extrae y valida el UUID (Folio Fiscal), actualiza el asiento contable
     y crea el registro correspondiente en l10n_mx_edi.document.
     """
-    # Nombre técnico del modelo del wizard (nombre de módulo corregido)
+    # Nombre técnico del modelo del wizard
     _name = 'l10n_mx_edi_link.associate_cfdi_wizard'
     # Descripción del modelo que aparece en la interfaz de Odoo
-    _description = 'Asistente para Asociar CFDI XML Externo'
+    _description = 'Asistente para Asociar CFDI de Pago Externo'
 
     # -------------------------------------------------------------------------
     # Definición de Campos del Wizard
@@ -32,19 +32,20 @@ class AssociateCfdiWizard(models.TransientModel):
 
     move_id = fields.Many2one(
         comodel_name='account.move',
-        string='Asiento Contable',
+        string='Asiento Contable (Pago)',
         required=True,
         readonly=True,
         default=lambda self: self.env.context.get('active_id'),
-        help="El asiento contable (factura, complemento de pago) al que se asociará el CFDI."
+        # Help text updated to reflect focus on payments
+        help="El asiento contable (tipo 'entry') del pago al que se asociará el CFDI de Complemento de Pago."
     )
 
     attachment_id = fields.Many2one(
         comodel_name='ir.attachment',
-        string='Archivo XML del CFDI',
+        string='Archivo XML del CFDI (REP)',
         required=True,
         domain="[('res_model', '=', 'account.move'), ('res_id', '=', move_id), ('name', '=ilike', '%.xml')]",
-        help="Seleccione el archivo XML del CFDI (que ya debe estar adjuntado al asiento contable) que desea asociar."
+        help="Seleccione el archivo XML del Complemento de Pago (REP) (que ya debe estar adjuntado al asiento contable) que desea asociar."
     )
 
     # -------------------------------------------------------------------------
@@ -69,12 +70,22 @@ class AssociateCfdiWizard(models.TransientModel):
                 'cfdi': 'http://www.sat.gob.mx/cfd/4',
                 'tfd': 'http://www.sat.gob.mx/TimbreFiscalDigital'
             }
+            # Find Complemento node (still needed for REP)
             complemento_node = root.find('.//cfdi:Complemento', namespaces)
             if complemento_node is None:
                 complemento_node = root.find('.//Complemento') # Fallback
                 if complemento_node is None:
                     _logger.warning(f"Node 'cfdi:Complemento' not found in XML for attachment ID {self.attachment_id.id}.")
+                    # Check if it's a REP by looking for pagos:Pagos node directly? More robust check might be needed.
+                    # For now, assume Complemento is needed structure-wise even if empty for some CFDI types.
+                    # Let's check specifically for Pagos node if Complemento fails.
+                    pagos_node = root.find('.//{http://www.sat.gob.mx/Pagos20}Pagos') # Check for Pagos 2.0 namespace explicitly
+                    if not pagos_node:
+                         raise UserError(_("The XML file does not seem to be a valid CFDI with Payments (Complemento or Pagos node missing)."))
+                    # If Pagos node exists, maybe TFD is directly under root? Unlikely standard. Let's stick to TFD within Complemento.
+                    # Re-raise the original error if Complemento is truly missing.
                     raise UserError(_("The XML file does not seem to be a valid CFDI, as it lacks the 'Complemento' node."))
+
 
             tfd_node = complemento_node.find('.//tfd:TimbreFiscalDigital', namespaces)
             if tfd_node is None:
@@ -135,18 +146,24 @@ class AssociateCfdiWizard(models.TransientModel):
     def action_associate_cfdi(self):
         """
         Main method executed when the user clicks the wizard's action button.
-        Performs the entire CFDI association process.
+        Performs the CFDI (REP) association process for a payment journal entry.
         """
         self.ensure_one()
         move = self.move_id
         attachment = self.attachment_id
 
-        _logger.info(f"Starting manual CFDI association process for Move ID {move.id} ('{move.name}') "
+        # Log updated for payment focus
+        _logger.info(f"Starting manual CFDI Payment Complement association process for Move ID {move.id} ('{move.name}') "
                      f"with Attachment ID {attachment.id} ('{attachment.name}').")
 
         # --- Initial Validations ---
         if not move:
             raise UserError(_("Could not determine the active journal entry. Please close the wizard and try again."))
+        # Added check for move_type consistency (although button should prevent wrong types)
+        if move.move_type != 'entry':
+             _logger.warning(f"Associate CFDI wizard called on move ID {move.id} with incorrect type '{move.move_type}'. Expected 'entry'.")
+             raise UserError(_("This wizard is only intended for associating Payment Complements with Payment Journal Entries (Type 'entry')."))
+
         if not attachment:
             raise UserError(_("You must select an XML file from the list to associate."))
         if not attachment.datas:
@@ -195,18 +212,10 @@ class AssociateCfdiWizard(models.TransientModel):
             existing_edi_doc = self.env['l10n_mx_edi.document'].search(edi_doc_domain, limit=1)
 
             if not existing_edi_doc:
-                # --- Determine correct state for l10n_mx_edi.document ---
-                edi_state = None
-                if move.move_type == 'out_invoice':
-                    edi_state = 'invoice_sent'
-                elif move.move_type == 'entry': # Assuming 'entry' is used for payments/REP
-                    edi_state = 'payment_sent'
-                else:
-                    # This case should ideally not happen due to button visibility rules
-                    _logger.error(f"Cannot determine EDI document state for move type '{move.move_type}' (Move ID: {move.id}).")
-                    raise UserError(_("Cannot determine the correct EDI document state for the move type '%s'.") % move.move_type)
-
-                _logger.info(f"Determined EDI document state: '{edi_state}' for move type '{move.move_type}'.")
+                # --- Set correct state for l10n_mx_edi.document (Payment) ---
+                # Logic simplified: always use 'payment_sent' as we only handle payments now
+                edi_state = 'payment_sent'
+                _logger.info(f"Using EDI document state: '{edi_state}' for payment complement.")
 
                 # --- Determine datetime for l10n_mx_edi.document ---
                 # Combine the move's date with the minimum time (00:00:00)
@@ -216,7 +225,7 @@ class AssociateCfdiWizard(models.TransientModel):
 
                 edi_doc_vals = {
                     'move_id': move.id,
-                    # Use the dynamically determined state
+                    # Use the fixed state for payments
                     'state': edi_state,
                     'sat_state': 'valid', # As agreed
                     'attachment_id': attachment.id,
@@ -234,19 +243,20 @@ class AssociateCfdiWizard(models.TransientModel):
 
             # 4. Log a message in the journal entry's chatter
             success_message = _(
-                "Original CFDI manually associated from attached file.<br/>"
-                "<b>XML File:</b> %s<br/>"
-                "<b>UUID (Fiscal Folio):</b> %s"
+                # Message updated for Payment Complement context
+                "Original CFDI de Pago (REP) asociado manualmente desde el archivo adjunto.<br/>"
+                "<b>Archivo XML:</b> %s<br/>"
+                "<b>UUID (Folio Fiscal):</b> %s"
             ) % (attachment.name, extracted_uuid)
             move.message_post(body=success_message)
-            _logger.info(f"Manual CFDI association completed successfully for Move ID {move.id}.")
+            _logger.info(f"Manual CFDI Payment Complement association completed successfully for Move ID {move.id}.")
 
         except (UserError, ValidationError) as e:
             raise e
         except Exception as e:
             # Log the exception with traceback for detailed debugging
             _logger.exception(f"Unexpected error during database update for move ID {move.id} "
-                              f"while associating CFDI from attachment ID {attachment.id}: {e}")
+                              f"while associating CFDI Payment Complement from attachment ID {attachment.id}: {e}")
             # Provide a user-friendly error message, including the technical detail if possible
             raise UserError(_("An unexpected error occurred while trying to save changes to the database. "
                               "The operation has been cancelled.\nTechnical detail: %s") % e)
