@@ -63,14 +63,14 @@ class PurchaseRequisitionLine(models.Model):
 
     # --- Lógica de Cálculo con @api.depends ---
 
-    # CORREGIDO: Dependencia para _compute_qty_cli simplificada
-    @api.depends('requisition_id.invoice_ids') # Depender solo del campo One2many
+    # TEMPORALMENTE COMENTADO PARA DIAGNÓSTICO DE INSTALACIÓN:
+    # @api.depends('requisition_id.invoice_ids')
     def _compute_qty_cli(self):
         """Calcula la cantidad total facturada al cliente para este producto."""
-        # Nota: Aunque la dependencia es más simple, la lógica interna sigue filtrando
-        # por estado 'posted' y tipo 'out_invoice' al momento de calcular.
         AccountMoveLine = self.env['account.move.line']
         for line in self:
+            # Si no hay dependencia, el cálculo podría no ejecutarse automáticamente.
+            # Lo dejamos aquí para futura referencia o activación posterior.
             if not line.requisition_id or not line.product_id:
                 line.qty_cli = 0.0
                 continue
