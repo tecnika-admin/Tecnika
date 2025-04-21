@@ -63,7 +63,6 @@ class PurchaseRequisitionLine(models.Model):
 
     # --- Lógica de Cálculo con @api.depends ---
 
-    # CORREGIDO: Simplificar dependencia para qty_ordered_calc
     @api.depends('requisition_id.purchase_ids.state', 'requisition_id.purchase_ids.order_line')
     def _compute_qty_ordered_calc(self):
         """Calcula la cantidad total ordenada en POs confirmadas."""
@@ -71,13 +70,11 @@ class PurchaseRequisitionLine(models.Model):
         for line in self:
             ordered_val = 0.0
             if line.requisition_id and line.product_id:
-                # Filtrar POs relevantes directamente
                 relevant_po_ids = line.requisition_id.purchase_ids.filtered(lambda po: po.state == 'purchase').ids
                 if relevant_po_ids:
                     domain = [
                         ('order_id', 'in', relevant_po_ids),
                         ('product_id', '=', line.product_id.id),
-                        # ('state', '=', 'purchase') # El estado ya se filtró en relevant_po_ids
                     ]
                     grouped_data = PurchaseOrderLine.read_group(
                         domain=domain,
@@ -88,7 +85,6 @@ class PurchaseRequisitionLine(models.Model):
                         ordered_val = grouped_data[0].get('product_qty', 0.0) or 0.0
             line.qty_ordered_calc = ordered_val
 
-    # Dependencia simplificada para _compute_qty_cli
     @api.depends('requisition_id.invoice_ids')
     def _compute_qty_cli(self):
         """Calcula la cantidad total facturada al cliente para este producto."""
@@ -106,16 +102,18 @@ class PurchaseRequisitionLine(models.Model):
                 line.qty_cli = 0.0
                 continue
 
+            # Buscar las líneas de factura relevantes
             domain_inv_lines = [
                 ('move_id', 'in', linked_invoice_ids),
                 ('product_id', '=', line.product_id.id),
-                ('exclude_from_invoice_tab', '=', False),
+                # CORREGIDO: Usar display_type para filtrar líneas de producto/servicio
+                ('display_type', '=', False),
             ]
 
             grouped_data = AccountMoveLine.read_group(
                 domain=domain_inv_lines,
                 fields=['quantity:sum'],
-                groupby=['product_id']
+                groupby=['product_id'] # Agrupar por producto
             )
 
             total_invoiced = 0.0
