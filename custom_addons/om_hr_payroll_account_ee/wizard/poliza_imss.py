@@ -34,23 +34,18 @@ class WizardPolizaIMSS(models.TransientModel):
        }
 
        for hr_payslip_run_id in self.hr_payslip_run_ids:
-           _logger.info('payslip run')
            for slip in hr_payslip_run_id.slip_ids:
-                _logger.info('payslip %s', slip.name)
                 if slip.state in ("cancel", "draft"):
-                     _logger.info('candel draft')
                      continue
 
                 if slip.contract_id.tablas_cfdi_id.id != self.tablas_id.id:
-                     _logger.info('sale tables')
                      continue
 
-                _logger.info('sigue adelante')
                 #cuota fija patronal
                 if self.tablas_id.pat_cuota_fija_pat_deb:
                         debit_line = (0, 0, {
                             'name': 'Cuota fija patronal',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_cuota_fija_pat_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -61,12 +56,11 @@ class WizardPolizaIMSS(models.TransientModel):
                         })
                         line_ids.append(debit_line)
                         debit_sum += debit_line[2]['debit'] - debit_line[2]['credit']
-                        _logger.info('cuota fija patronal deb')
 
                 if self.tablas_id.pat_cuota_fija_pat_cre:
                         credit_line = (0, 0, {
                             'name': 'Cuota fija patronal',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_cuota_fija_pat_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -77,14 +71,12 @@ class WizardPolizaIMSS(models.TransientModel):
                         })
                         line_ids.append(credit_line)
                         credit_sum += credit_line[2]['credit'] - credit_line[2]['debit']
-                        _logger.info('cuota fija patronal cre')
-                _logger.info('paso cuota fija')
 
                 #Excedente SGM
                 if self.tablas_id.pat_exedente_smg_deb:
                         debit_line = (0, 0, {
                             'name': 'Excedente SGM',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_exedente_smg_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -99,7 +91,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_cuota_fija_pat_cre:
                         credit_line = (0, 0, {
                             'name': 'Excedente SGM',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_exedente_smg_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -115,7 +107,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_prest_dinero_deb:
                         debit_line = (0, 0, {
                             'name': 'Excedente SGM',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_prest_dinero_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -130,7 +122,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_prest_dinero_cre:
                         credit_line = (0, 0, {
                             'name': 'Excedente SGM',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_prest_dinero_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -146,7 +138,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_esp_pens_deb:
                         debit_line = (0, 0, {
                             'name': 'Gastos medicos',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_esp_pens_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -161,7 +153,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_esp_pens_cre:
                         credit_line = (0, 0, {
                             'name': 'Gastos medicos',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_esp_pens_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -177,7 +169,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_riesgo_trabajo_deb:
                         debit_line = (0, 0, {
                             'name': 'Riesgo de trabajo',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_riesgo_trabajo_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -192,7 +184,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_riesgo_trabajo_cre:
                         credit_line = (0, 0, {
                             'name': 'Riesgo de trabajo',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_riesgo_trabajo_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -208,7 +200,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_invalidez_vida_deb:
                         debit_line = (0, 0, {
                             'name': 'Invalidez y Vida',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_invalidez_vida_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -223,7 +215,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_invalidez_vida_cre:
                         credit_line = (0, 0, {
                             'name': 'Invalidez y Vida',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_invalidez_vida_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -239,7 +231,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_guarderias_deb:
                         debit_line = (0, 0, {
                             'name': 'Guarderias y PS',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_guarderias_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -254,7 +246,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_guarderias_cre:
                         credit_line = (0, 0, {
                             'name': 'Guarderias y PS',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_guarderias_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -270,7 +262,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_retiro_deb:
                         debit_line = (0, 0, {
                             'name': 'Guarderias y PS',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_retiro_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -285,7 +277,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_retiro_cre:
                         credit_line = (0, 0, {
                             'name': 'Guarderias y PS',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_retiro_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -301,7 +293,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_cesantia_vejez_deb:
                         debit_line = (0, 0, {
                             'name': 'Cesantia y Vejez',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_cesantia_vejez_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -316,7 +308,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_cesantia_vejez_cre:
                         credit_line = (0, 0, {
                             'name': 'Cesantia y Vejez',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_cesantia_vejez_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -332,7 +324,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_infonavit_deb:
                         debit_line = (0, 0, {
                             'name': 'INFONAVIT',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_infonavit_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -347,7 +339,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_infonavit_cre:
                         credit_line = (0, 0, {
                             'name': 'INFONAVIT',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_infonavit_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -363,7 +355,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_total_deb:
                         debit_line = (0, 0, {
                             'name': 'IMSS Patron',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_total_deb.id,
                             'journal_id': self.journal_id.id,
                             'date': date,
@@ -378,7 +370,7 @@ class WizardPolizaIMSS(models.TransientModel):
                 if self.tablas_id.pat_total_cre:
                         credit_line = (0, 0, {
                             'name': 'IMSS Patron',
-                            'partner_id': slip.employee_id.address_home_id.id or '',
+                            'partner_id': slip.employee_id.work_contact_id.id or '',
                             'account_id': self.tablas_id.pat_total_cre.id,
                             'journal_id': self.journal_id.id,
                             'date': date,

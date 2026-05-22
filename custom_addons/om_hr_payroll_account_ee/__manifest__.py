@@ -4,7 +4,7 @@
     'name': 'Odoo 18 HR Payroll Accounting EE',
     'category': 'Generic Modules/Human Resources',
     'author': 'IT Admin',
-    'version': '18.01',
+    'version': '18.04',
     'sequence': 1,
     'website': 'https://www.itadmin.com.mx',
     'summary': 'Funcionalidades para crear pólizas desde las nóminas.',

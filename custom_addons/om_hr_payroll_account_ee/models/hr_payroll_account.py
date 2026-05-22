@@ -435,6 +435,7 @@ class ContabilidadNomina(models.Model):
     account_credit = fields.Many2one('account.account', 'Cuenta contable', domain=[('deprecated', '=', False)])
     employee_id = fields.Many2one('hr.employee', string='Empleado')
 #    account_analytic = fields.Many2one('account.analytic.account', 'Cuenta analítica')
+    company_id = fields.Many2one('res.company', 'Company', default=lambda self: self.env.company)
 
 class ContabilidadNomina(models.Model):
     _inherit = ['analytic.mixin']
@@ -446,4 +447,4 @@ class ContabilidadNomina(models.Model):
     account_credit = fields.Many2one('account.account', 'Cuenta contable', domain=[('deprecated', '=', False)])
     employee_id = fields.Many2one('hr.employee', string='Empleado')
 #    account_analytic = fields.Many2one('account.analytic.account', 'Cuenta analítica')
-
+    company_id = fields.Many2one('res.company', 'Company', default=lambda self: self.env.company)
