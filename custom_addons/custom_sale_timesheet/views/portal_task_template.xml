@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Reemplaza task.portal_progress por task.custom_portal_progress en el portal.
+        portal_progress filtra timesheets con project_id != False, lo que falla cuando
+        se usa una cuenta analítica compartida. custom_portal_progress consulta solo
+        por task_id, sin ese requisito.
+    -->
+    <template id="custom_portal_my_task_inherit"
+              inherit_id="sale_timesheet_enterprise.portal_my_task_inherit">
+        <xpath expr="//span[@t-esc='task.portal_progress * 100']" position="attributes">
+            <attribute name="t-esc">task.custom_portal_progress * 100</attribute>
+        </xpath>
+    </template>
+
+    <!--
+        Reemplaza task.portal_total_hours_spent por task.custom_portal_total_hours_spent
+        en la columna "Time Spent" de la vista lista del portal.
+    -->
+    <template id="custom_portal_tasks_list_inherit"
+              inherit_id="sale_timesheet_enterprise.portal_tasks_portal_list_inherit">
+        <xpath expr="//t[@t-out='timesheet_ids._convert_hours_to_days(task.portal_total_hours_spent)']" position="replace">
+            <t t-out="timesheet_ids._convert_hours_to_days(task.custom_portal_total_hours_spent)"/>
+        </xpath>
+        <xpath expr="//span[@t-field='task.portal_total_hours_spent']" position="attributes">
+            <attribute name="t-field">task.custom_portal_total_hours_spent</attribute>
+        </xpath>
+    </template>
+</odoo>
