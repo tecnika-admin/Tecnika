@@ -1,0 +1,491 @@
+.cfdi-page {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.12;
+    color: #000;
+    position: relative;
+    padding: 0;
+}
+.cfdi-page, .cfdi-page * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-sizing: border-box;
+}
+.cfdi-page table {
+    border: none !important;
+    border-collapse: collapse;
+    width: 100%;
+}
+.cfdi-page td,
+.cfdi-page th {
+    vertical-align: top;
+}
+
+.b { font-weight: bold; }
+.tc { text-align: center; }
+.tr { text-align: right; }
+.tl { text-align: left; }
+.upper { text-transform: uppercase; }
+.small { font-size: 11.7px; }
+.xsmall { font-size: 10.3px; }
+.micro { font-size: 9.5px; }
+.muted { color: #222; }
+.nowrap { white-space: nowrap; }
+.break { word-break: break-all; overflow-wrap: anywhere; }
+
+.cfdi-header {
+    margin-bottom: 5px;
+    border: 0 !important;
+    border-collapse: separate !important;
+}
+.cfdi-header td {
+    padding: 0 5px;
+    border: 0 !important;
+}
+.cfdi-header-logo {
+    width: 23%;
+    text-align: left;
+    vertical-align: middle;
+}
+.cfdi-header-issuer {
+    width: 50%;
+    vertical-align: top;
+}
+.cfdi-header-page {
+    width: 27%;
+    vertical-align: top;
+}
+.brand-logo {
+    max-width: 155px;
+    max-height: 55px;
+    margin-top: 14px;
+}
+.issuer-name {
+    font-size: 24.5px;
+    line-height: 1;
+    letter-spacing: .1px;
+}
+.issuer-block {
+    font-size: 11.9px;
+    line-height: 1.16;
+}
+.issuer-rfc {
+    margin-top: 3px;
+}
+.page-count {
+    font-size: 12.3px;
+    font-weight: bold;
+    text-align: center;
+}
+
+    
+.rounded-box {
+    border: 0 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    overflow: visible;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    background: transparent !important;
+
+}
+/* El borde + radio viven en la celda (como .field-cell), porque
+   wkhtmltopdf no pinta el borde de una tabla con border-radius. */
+.rounded-box > tbody > tr > td,
+.rounded-box > tr > td {
+    border: 1.25px solid #000 !important;
+    border-radius: 5px;
+    position: relative;
+}
+.box-pad {
+    padding: 7px 7px 5px;
+}
+.legend {
+    position: absolute;
+    top: -6px;
+    left: 24px;
+    padding: 0 8px;
+    background: #fff !important;
+    font-size: 11.2px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .15px;
+    white-space: nowrap;
+}
+.legend-right {
+    left: auto;
+    right: 18px;
+}
+.box-value {
+    min-height: 45px;
+    font-size: 14.4px;
+    line-height: 1.14;
+}
+
+.customer-invoice-row {
+    margin-top: 5px;
+    border: 0 !important;
+    border-collapse: separate !important;
+}
+.customer-cell {
+    width: 64%;
+    padding-right: 6px;
+}
+.customer-box {
+    margin-top: 21px !important;
+}
+.customer-rfc {
+    font-size: 14.9px;
+    margin-top: 1px;
+}
+.invoice-cell {
+    width: 36%;
+    position: relative;
+}
+.invoice-place {
+    position: absolute;
+    top: -12px;
+    left: 12px;
+    right: 12px;
+    text-align: center;
+    background: #fff !important;
+    padding: 0 6px;
+    font-size: 11.4px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.invoice-title {
+    text-align: center;
+    font-size: 15.8px;
+    line-height: 1;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 1px;
+}
+.invoice-folio {
+    text-align: center;
+    font-size: 16.6px;
+    line-height: 1;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+.kv td {
+    padding: .5px 2px;
+    font-size: 10.3px;
+    line-height: 1.08;
+}
+.invoice-kv {
+    border: 0 !important;
+    border-collapse: separate !important;
+    margin-top: 17px;
+}
+.kv .k {
+    width: 39%;
+    text-align: right;
+    font-weight: bold;
+}
+
+.field-row {
+    border-collapse: separate !important;
+    border-spacing: 4px 0;
+    margin-top: 2px;
+    margin-bottom: 3px;
+}
+.field-cell {
+    border: 1.25px solid #000 !important;
+    border-radius: 5px;
+    height: 30px;
+    position: relative;
+    text-align: center;
+    padding: 10px 3px 3px;
+    font-size: 14px;
+    line-height: 1.06;
+    overflow: visible;
+}
+.field-order { width: 16%; }
+.field-credit-days { width: 14%; }
+.field-due-date { width: 18%; }
+.field-payment-policy { width: 14%; }
+.field-cfdi-usage { width: 19%; }
+.field-payment-way { width: 19%; }
+.field-cell .legend {
+    top: -6px;
+    left: 12px;
+    right: 12px;
+    display: block;
+    text-align: center;
+    padding: 0 3px;
+    font-size: 9.6px;
+    letter-spacing: 0;
+}
+
+.main-frame {
+    border: 1.3px solid #000 !important;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 3px;
+    min-height: 670px;
+    position: relative;
+}
+.concepts {
+    border-collapse: collapse !important;
+    table-layout: fixed;
+}
+.concept-part { width: 4%; }
+.concept-description { width: 36%; }
+.concept-packaging { width: 10%; }
+.concept-key { width: 7%; }
+.concept-uom { width: 9%; }
+.concept-quantity { width: 11%; }
+.concept-price { width: 11%; }
+.concept-amount { width: 12%; }
+.concepts th {
+    border-bottom: 1.2px solid #000 !important;
+    padding: 2px 3px;
+    font-size: 10.7px;
+    line-height: 1.05;
+    font-weight: bold;
+    text-align: center;
+}
+.concepts td {
+    border: 0 !important;
+    padding: 2px 4px 1px;
+    font-size: 11px;
+    line-height: 1.1;
+}
+.concept-desc {
+    font-size: 11px;
+    line-height: 1.1;
+}
+.concepts .small {
+    font-size: 7.5px;
+}
+/* El relleno superior solo separa los sellos de los conceptos.
+   El alto de página lo aporta .main-frame (min-height); un padding
+   grande aquí empuja el bloque inferior más allá del corte de
+   página en facturas multipágina y wkhtmltopdf infla el alto de
+   .bottom-area con la franja sobrante. Mantenerlo pequeño. */
+.stamp-area {
+    padding: 18px 8px 0;
+    position: relative;
+    z-index: 1;
+}
+.stamp-label {
+    font-size: 11.6px;
+    font-weight: bold;
+    margin: 7px 0 1px;
+}
+.stamp-content {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10px;
+    line-height: 1.18;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
+.payments {
+    text-align: center;
+    font-size: 15.8px;
+    line-height: 1.12;
+    margin-top: 52px;
+    position: relative;
+    z-index: 1;
+}
+.payments-title {
+    font-size: 17.5px;
+    font-weight: bold;
+    line-height: 1;
+}
+.legal-note {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 7px;
+    text-align: center;
+    font-size: 9.8px;
+    font-weight: bold;
+    line-height: 1.15;
+}
+
+.observations {
+    min-height: 40px;
+    margin-top: 10px !important;
+}
+.observations .box-pad {
+    padding-top: 6px;
+    min-height: 38px;
+}
+
+/* ----------------------------------------------------------------
+   Zona inferior (QR + pagaré + totales + certificados).
+   Todas las tablas usan table-layout:fixed con anchos explícitos
+   para que cambiar un padding NO reacomode el texto ni dispare el
+   alto de la fila (bug de auto-layout en wkhtmltopdf).
+   ---------------------------------------------------------------- */
+.bottom-area {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse !important;
+    border: 1.2px solid #000 !important;
+}
+/* Marco completo del bloque inferior: borde en la tabla y en sus
+   celdas (QR | contenido). collapse evita el bug de borde+radio. */
+.bottom-area > tbody > tr > td,
+.bottom-area > tr > td {
+    border: 1.2px solid #000 !important;
+}
+.qr-cell {
+    width: 118px;
+    text-align: center;
+    vertical-align: top;
+    padding-top: 8px;
+}
+.qr-code {
+    width: 94px;
+    height: 94px;
+}
+.bottom-content {
+    vertical-align: top;
+}
+
+.promissory {
+    width: 100%;
+    table-layout: fixed;
+    border: 0 !important;
+    border-collapse: separate !important;
+    margin-bottom: 3px;
+}
+/* El padding-top de esta celda es la perilla para separar "PAGARÉ".
+   Con table-layout:fixed solo agrega ese alto, sin reflujo. */
+.promissory-text {
+    width: 62%;
+    vertical-align: top;
+    padding: 8px 8px 5px;
+    border: 0 !important;
+}
+.promissory-sign {
+    width: 38%;
+    vertical-align: top;
+    padding: 7px 8px 4px;
+    border: 0 !important;
+}
+.promissory-title {
+    text-align: center;
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+.signature-line {
+    border-top: 1px solid #000;
+    margin: 24px 8px 0;
+    padding-top: 2px;
+    text-align: center;
+    font-size: 10.2px;
+}
+.promissory-date {
+    margin-top: 2px;
+}
+
+.vendor-totals {
+    width: 100%;
+    table-layout: fixed;
+    border: 0 !important;
+    border-collapse: separate !important;
+}
+.vt-left {
+    width: 69%;
+    vertical-align: top;
+    border: 0 !important;
+}
+.vt-right {
+    width: 31%;
+    vertical-align: top;
+    padding-left: 5px;
+    border: 0 !important;
+}
+.mini-grid {
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 4px 0;
+}
+.mini-grid td {
+    border: 1.2px solid #000 !important;
+    border-radius: 5px;
+    text-align: center;
+    height: 21px;
+    padding: 2px 3px 1px;
+    font-size: 11.2px;
+    line-height: 1.05;
+    position: relative;
+}
+.mini-grid .mini-title {
+    display: block;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.amount-words {
+    border: 1.2px solid #000 !important;
+    border-radius: 5px;
+    margin: 3px 4px 2px;
+    min-height: 23px;
+    padding: 3px 6px;
+    font-size: 11.4px;
+    text-align: center;
+}
+.totals {
+    width: 100%;
+    border: 1.2px solid #000 !important;
+    border-collapse: separate !important;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.totals td {
+    padding: 1.5px 5px;
+    font-size: 12.3px;
+    line-height: 1.07;
+}
+.totals .lbl {
+    width: 54%;
+    text-align: right;
+    font-weight: bold;
+}
+.totals .grand td {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.cert-area {
+    width: 100%;
+    table-layout: fixed;
+    border: 0 !important;
+    border-collapse: separate !important;
+}
+.cert-row {
+    width: 60%;
+    font-size: 10.2px;
+    line-height: 1.2;
+    padding: 1px 5px 0;
+}
+.printed-note {
+    width: 40%;
+    text-align: right;
+    font-size: 10.2px;
+    line-height: 1.15;
+    padding: 1px 6px 0;
+}
+
+.cfdi-watermark {
+    position: absolute;
+    top: 49%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: .055;
+    z-index: 0;
+    text-align: center;
+    pointer-events: none;
+}
+.cfdi-watermark img {
+    width: 430px;
+    max-height: 430px;
+}
