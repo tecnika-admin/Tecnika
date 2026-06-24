@@ -49,7 +49,6 @@
 .b { font-weight: bold; }
 .tc { text-align: center; }
 .tr { text-align: right; }
-.tl { text-align: left; }
 .cfdi-page td.tc,
 .cfdi-page th.tc,
 .cfdi-page td.tr,
@@ -58,10 +57,7 @@
 }
 .upper { text-transform: uppercase; }
 .small { font-size: 11.7px; }
-.xsmall { font-size: 10.3px; }
 .micro { font-size: 9.5px; }
-.muted { color: #222; }
-.nowrap { white-space: nowrap; }
 .break { word-break: break-all; overflow-wrap: anywhere; }
 
 .cfdi-header {
@@ -80,10 +76,6 @@
 }
 .cfdi-header-branches {
     width: 68%;
-    vertical-align: top;
-}
-.cfdi-header-page {
-    width: 14%;
     vertical-align: top;
 }
 .brand-logo {
@@ -112,11 +104,6 @@
     font-weight: bold;
     line-height: 1.05;
     text-transform: uppercase;
-}
-.page-count {
-    font-size: 12.3px;
-    font-weight: bold;
-    text-align: center;
 }
 
     
@@ -239,26 +226,6 @@
 .invoice-cell {
     width: 20%;
     position: relative;
-}
-.invoice-place {
-    position: absolute;
-    top: -12px;
-    left: 12px;
-    right: 12px;
-    text-align: center;
-    background: #fff !important;
-    padding: 0 6px;
-    font-size: 11.4px;
-    font-weight: bold;
-    text-transform: uppercase;
-}
-.invoice-title {
-    text-align: center;
-    font-size: 13.8px;
-    line-height: 1;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-bottom: 1px;
 }
 .invoice-folio {
     color: #15af97;
@@ -388,29 +355,6 @@
     line-height: 1.18;
     word-break: break-all;
     overflow-wrap: anywhere;
-}
-.payments {
-    text-align: center;
-    font-size: 15.8px;
-    line-height: 1.12;
-    margin-top: 52px;
-    position: relative;
-    z-index: 1;
-}
-.payments-title {
-    font-size: 17.5px;
-    font-weight: bold;
-    line-height: 1;
-}
-.legal-note {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 7px;
-    text-align: center;
-    font-size: 9.8px;
-    font-weight: bold;
-    line-height: 1.15;
 }
 
 .observations {

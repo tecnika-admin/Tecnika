@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import base64
 import functools
-from datetime import date
 
 from odoo import models
 from odoo.tools import file_open
@@ -64,10 +63,8 @@ class AccountMove(models.Model):
             'payment_way': self._cfdi_payment_way_display(cfdi),
             'credit_days': self._cfdi_credit_days(),
             'taxes': self._cfdi_tax_summary(),
-            'payment_schedule': self._cfdi_payment_schedule(),
             'bank_accounts': self._cfdi_bank_accounts(),
             'logo_src': self._cfdi_static_image('header_icon.png'),
-            'icono_src': self._cfdi_static_image('icono.png'),
             'watermark_src': self._cfdi_static_svg('watermark.svg'),
         }
 
@@ -139,20 +136,8 @@ class AccountMove(models.Model):
                 traslado += amount
         return {'traslado': traslado, 'retenido': retenido}
 
-    def _cfdi_payment_schedule(self):
-        """Cuotas: receivable lines grouped by maturity date (matters for PPD)."""
-        self.ensure_one()
-        buckets = {}
-        for line in self.line_ids:
-            if line.account_id.account_type != 'asset_receivable':
-                continue
-            buckets.setdefault(line.date_maturity, 0.0)
-            buckets[line.date_maturity] += line.amount_currency
-        ordered = sorted(buckets.items(), key=lambda item: (item[0] or date.max))
-        return [{'date': maturity, 'amount': amount} for maturity, amount in ordered]
-
     def _cfdi_bank_accounts(self):
-        """CLABEs of the issuing company (bank code + name + account number).
+        """CLABEs of the issuing company (bank code + name).
 
         Only the accounts whose currency matches the invoice currency are
         returned: a USD invoice shows USD accounts and an MXN invoice shows
@@ -165,7 +150,6 @@ class AccountMove(models.Model):
             {
                 'code': bank.l10n_mx_edi_clabe or '',
                 'bank': bank.bank_id.name or '',
-                'number': bank.acc_number or '',
             }
             for bank in self.company_id.partner_id.bank_ids
             if (bank.currency_id or company_currency) == self.currency_id
