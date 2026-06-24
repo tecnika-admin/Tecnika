@@ -259,16 +259,26 @@
                     </div>
 
                 </div>
-                    <table class="rounded-box observations">
                 <t t-if="o.narration">
-                        <tr>
-                            <td class="box-pad">
-                                <span class="legend">Terminos y condiciones</span>
-                                <span t-out="o.narration"/>
-                            </td>
-                        </tr>
-                </t>
+                    <table class="rounded-box observations">
+                            <tr>
+                                <td class="box-pad">
+                                    <span class="legend">Terminos y condiciones</span>
+                                    <span t-out="o.narration"/>
+                                </td>
+                            </tr>
                     </table>
+                </t>
+
+                <table class="rounded-box observations">
+                    <tr>
+                        <td class="box-pad">
+                            <span class="legend">Importante</span>
+                            <span>Conforme a las políticas internas de Tecnika Global, las solicitudes de cancelación o corrección de CFDI deberán realizarse dentro del mes de emisión o, a más tardar, el día 5 del mes siguiente.</span>
+                        </td>
+                    </tr>
+                </table>
+
                 <table class="bottom-area">
                     <tr>
                         <td class="qr-cell">

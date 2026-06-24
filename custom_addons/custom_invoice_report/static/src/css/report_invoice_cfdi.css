@@ -365,6 +365,19 @@
     padding-top: 6px;
     min-height: 38px;
 }
+/* El campo "Términos y condiciones" (o.narration) es HTML y puede traer
+   tablas/divs con borde o fondo pegados desde otra fuente. Se neutralizan
+   para que solo se vea el borde redondeado del .rounded-box, no un doble marco. */
+.observations .box-pad table,
+.observations .box-pad tr,
+.observations .box-pad td,
+.observations .box-pad div,
+.observations .box-pad p {
+    border: 0 !important;
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
 
 /* ----------------------------------------------------------------
    Zona inferior (QR + pagaré + totales + certificados).
