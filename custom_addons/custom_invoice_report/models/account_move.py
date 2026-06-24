@@ -66,8 +66,9 @@ class AccountMove(models.Model):
             'taxes': self._cfdi_tax_summary(),
             'payment_schedule': self._cfdi_payment_schedule(),
             'bank_accounts': self._cfdi_bank_accounts(),
-            'logo_src': self._cfdi_static_image('logo.png'),
+            'logo_src': self._cfdi_static_image('header_icon.png'),
             'icono_src': self._cfdi_static_image('icono.png'),
+            'watermark_src': self._cfdi_static_svg('watermark.svg'),
         }
 
     @staticmethod
@@ -84,6 +85,16 @@ class AccountMove(models.Model):
             'custom_invoice_report/static/src/img/%s' % filename, 'rb'
         ) as handle:
             return image_data_uri(base64.b64encode(handle.read()))
+
+    @staticmethod
+    @functools.lru_cache(maxsize=4)
+    def _cfdi_static_svg(filename):
+        """Base64 data URI for SVG assets used in the PDF."""
+        with file_open(
+            'custom_invoice_report/static/src/img/%s' % filename, 'rb'
+        ) as handle:
+            payload = base64.b64encode(handle.read()).decode()
+        return 'data:image/svg+xml;base64,%s' % payload
 
     def _cfdi_usage_display(self, cfdi):
         """Uso CFDI as ``CODE - Label`` (label honours the active language)."""
@@ -141,11 +152,23 @@ class AccountMove(models.Model):
         return [{'date': maturity, 'amount': amount} for maturity, amount in ordered]
 
     def _cfdi_bank_accounts(self):
-        """CLABEs of the issuing company (bank name + account number)."""
+        """CLABEs of the issuing company (bank code + name + account number).
+
+        Only the accounts whose currency matches the invoice currency are
+        returned: a USD invoice shows USD accounts and an MXN invoice shows
+        MXN accounts. Accounts without an explicit currency are treated as
+        company-currency accounts.
+        """
         self.ensure_one()
+        company_currency = self.company_id.currency_id
         return [
-            {'bank': bank.bank_id.name or '', 'number': bank.acc_number or ''}
+            {
+                'code': bank.l10n_mx_edi_clabe or '',
+                'bank': bank.bank_id.name or '',
+                'number': bank.acc_number or '',
+            }
             for bank in self.company_id.partner_id.bank_ids
+            if (bank.currency_id or company_currency) == self.currency_id
         ]
 
     def _cfdi_line_series(self, line):

@@ -26,41 +26,52 @@
              t-att-data-oe-lang="o.partner_id.lang or o.company_id.partner_id.lang">
             <div class="page cfdi-page">
 
-                <t t-if="company.logo">
-                    <div class="cfdi-watermark">
-                        <img t-att-src="image_data_uri(company.logo)" alt=""/>
-                    </div>
-                </t>
+                <div class="cfdi-watermark">
+                    <img t-att-src="rdata['watermark_src']" alt=""/>
+                </div>
 
                 <!-- Encabezado abierto, sin caja exterior, como el formato muestra. -->
                 <table class="cfdi-header">
                     <tr>
                         <td class="cfdi-header-logo">
-                            <img t-if="company.logo" class="brand-logo"
-                                t-att-src="image_data_uri(company.logo)" alt="Logo"/>
+                            <img class="brand-logo"
+                                t-att-src="rdata['logo_src']" alt="Tecnika"/>
                         </td>
-                        <td class="cfdi-header-issuer">
-                            <div class="issuer-name b upper"><t t-out="company.name"/></div>
-                            <div class="issuer-block">
-                                <div class="b">Domicilio:</div>
-                                <div>
-                                    <t t-out="company.street or ''"/>
-                                    <t t-if="company.street2"> <t t-out="company.street2"/></t>
-                                </div>
-                                <div>
-                                    <t t-out="company.zip or ''"/>
-                                    <t t-out="(' ' + company.city) if company.city else ''"/>,
-                                    <t t-out="company.state_id.name or ''"/>
-                                </div>
-                                <div><t t-out="company.country_id.name or ''"/></div>
-                                <div class="issuer-rfc">RFC: <t t-out="company.vat or ''"/></div>
-                                <div t-if="company.l10n_mx_edi_fiscal_regime">
-                                    Régimen: <span t-field="company.l10n_mx_edi_fiscal_regime"/>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="cfdi-header-page">
-                            <div class="page-count">Página 1 de 1</div>
+                        <td class="cfdi-header-branches">
+                            <table class="branches">
+                                <tr>
+                                    <td>
+                                        <div class="branch-title">Los Mochis</div>
+                                        <div>Rosendo Castro No. 599, Local 1</div>
+                                        <div>Col. Centro C.P. 81200</div>
+                                        <div>Los Mochis, Sinaloa</div>
+                                        <div>Tel. (668) 818 8050</div>
+                                    </td>
+                                    <td>
+                                        <div class="branch-title">Mazatlán</div>
+                                        <div>Marina No. 6116 - 13C</div>
+                                        <div>Col. Marina C.P. 82013</div>
+                                        <div>Mazatlán, Sinaloa</div>
+                                        <div>Tel. (669) 930 0200</div>
+                                    </td>
+                                    <td>
+                                        <div class="branch-title">Tijuana</div>
+                                        <div>Fray Servando Teresa de</div>
+                                        <div>Mier 1351, Zona Urbana</div>
+                                        <div>Río TJ. C.P. 22010</div>
+                                        <div>Tijuana, Baja California</div>
+                                        <div>Tel. (667) 712 4444</div>
+                                    </td>
+                                    <td>
+                                        <div class="branch-title">CDMX</div>
+                                        <div>Gral. Pedro Antonio de los</div>
+                                        <div>Santos No. 96 - Int. 200</div>
+                                        <div>San Miguel Chapultepec</div>
+                                        <div>CDMX C.P. 11850</div>
+                                        <div>Tel. (55) 6650 8840</div>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                 </table>
@@ -68,50 +79,79 @@
                 <!-- Vendido a + Factura. Se conservan los mismos bloques existentes. -->
                 <table class="customer-invoice-row">
                     <tr>
+                        <td class="issuer-cell">
+                            <table class="rounded-box issuer-box">
+                                <tr>
+                                    <td class="box-pad">
+                                        <span class="legend">Emisor</span>
+                                        <div class="box-value party-box-value">
+                                            <div class="party-name upper"><t t-out="company.name"/></div>
+                                            <div class="party-address">
+                                                <div class="party-rfc">
+                                                    RFC: <t t-out="company.vat or ''"/>
+                                                </div>
+                                                <div class="b">Domicilio:</div>
+                                                <div>
+                                                    <t t-out="company.street or ''"/>
+                                                    <t t-if="company.street2"> <t t-out="company.street2"/></t>
+                                                </div>
+                                                <div>
+                                                    <t t-out="company.zip or ''"/>
+                                                    <t t-out="(' ' + company.city) if company.city else ''"/>,
+                                                    <t t-out="company.state_id.name or ''"/>
+                                                </div>
+                                                <div><t t-out="company.country_id.name or ''"/></div>
+                                                <div t-if="company.l10n_mx_edi_fiscal_regime">
+                                                    Régimen: <span t-field="company.l10n_mx_edi_fiscal_regime"/>
+                                                </div>
+                                            </div>
+                                            
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
                         <td class="customer-cell">
                             <table class="rounded-box customer-box">
                                 <tr>
                                     <td class="box-pad">
-                                        <span class="legend">Vendido a:</span>
-                                        <div class="box-value">
-                                            <div class="upper"><t t-out="partner.name or ''"/></div>
-                                            <div>
-                                                <t t-out="partner.street or ''"/>
-                                                <t t-if="partner.street2"> <t t-out="partner.street2"/></t>
+                                        <span class="legend">Receptor</span>
+                                        <div class="box-value party-box-value">
+                                            <div class="party-name upper"><t t-out="partner.name or ''"/></div>
+                                            <div class="party-address">
+                                                <div class="party-rfc">
+                                                    RFC: <t t-out="o.l10n_mx_edi_cfdi_customer_rfc or partner.vat or ''"/>
+                                                </div>
+                                                <div class="b">Domicilio:</div>
+                                                <div>
+                                                    <t t-out="partner.street or ''"/>
+                                                    <t t-if="partner.street2"> <t t-out="partner.street2"/></t>
+                                                </div>
+                                                <div>
+                                                    <t t-out="partner.zip or ''"/>
+                                                    <t t-out="(' ' + partner.city) if partner.city else ''"/>,
+                                                    <t t-out="partner.state_id.name or ''"/>
+                                                    <t t-out="(', ' + partner.country_id.name) if partner.country_id else ''"/>
+                                                </div>
+                                                <div t-if="partner.l10n_mx_edi_fiscal_regime">
+                                                    Régimen: <span t-field="partner.l10n_mx_edi_fiscal_regime"/>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <t t-out="partner.zip or ''"/>
-                                                <t t-out="(' ' + partner.city) if partner.city else ''"/>,
-                                                <t t-out="partner.state_id.name or ''"/>
-                                                <t t-out="(', ' + partner.country_id.name) if partner.country_id else ''"/>
-                                            </div>
-                                            <div t-if="partner.l10n_mx_edi_fiscal_regime">
-                                                Régimen Fiscal: <span t-field="partner.l10n_mx_edi_fiscal_regime"/>
-                                            </div>
-                                            <div class="b tr customer-rfc">
-                                                RFC: <t t-out="o.l10n_mx_edi_cfdi_customer_rfc or partner.vat or ''"/>
-                                            </div>
+                                            
                                         </div>
                                     </td>
                                 </tr>
                             </table>
                         </td>
                         <td class="invoice-cell">
-                            <div class="invoice-place">
-                                EXPEDIDO EN
-                                <t t-out="(company.city or company.state_id.name or '').upper()"/>
-                                <t t-if="company.state_id">,
-                                    <t t-out="(company.state_id.code or company.state_id.name).upper()"/>.
-                                </t>
-                            </div>
                             <table class="rounded-box invoice-card">
                                 <tr>
                                     <td class="box-pad">
-                                        <div class="invoice-title">
+                                        <span class="legend-center">
                                             <t t-if="o.move_type == 'out_refund'">Nota de crédito</t>
                                             <t t-elif="o.move_type == 'out_invoice'">Factura</t>
                                             <t t-else="">Comprobante</t>
-                                        </div>
+                                        </span>
                                         <div class="invoice-folio"><t t-out="o.name or ''"/></div>
                                         <table class="kv invoice-kv">
                                             <tr>
@@ -119,12 +159,13 @@
                                                 <td><t t-out="o.invoice_date.strftime('%d/%m/%Y') if o.invoice_date else ''"/></td>
                                             </tr>
                                             <tr>
-                                                <td class="k">Folio Fiscal:</td>
-                                                <td class="break"><t t-out="cfdi.get('uuid') or o.l10n_mx_edi_cfdi_uuid or ''"/></td>
-                                            </tr>
-                                            <tr>
-                                                <td class="k">Fecha y hora de certificación:</td>
-                                                <td class="break"><t t-out="cfdi.get('stamp_date') or ''"/></td>
+                                                <td class="k">Expedido:</td>
+                                                <td class="break" style="font-size: 10px;">
+                                                    <t t-out="(company.city or company.state_id.name or '').upper()"/>
+                                                    <t t-if="company.state_id">,
+                                                        <t t-out="(company.state_id.code or company.state_id.name).upper()"/>.
+                                                    </t>
+                                                </td>
                                             </tr>
                                         </table>
                                     </td>
@@ -135,17 +176,17 @@
                 </table>
 
                 <!-- Fila fiscal en campos redondeados con título flotante. -->
-                <table class="field-row">
+                <table class="field-row" style="margin-top: 0.5em;">
                     <tr>
-                        <td class="field-cell field-order">
+                        <td class="field-cell field-order b">
                             <span class="legend">Pedido</span>
                             <t t-out="o.invoice_origin or o.ref or ''"/>
                         </td>
-                        <td class="field-cell field-credit-days">
+                        <td class="field-cell field-credit-days b">
                             <span class="legend">Días de crédito</span>
                             <t t-out="rdata['credit_days']"/>
                         </td>
-                        <td class="field-cell field-due-date">
+                        <td class="field-cell field-due-date b">
                             <span class="legend">Fecha de vencimiento</span>
                             <t t-out="o.invoice_date_due.strftime('%d/%m/%Y') if o.invoice_date_due else ''"/>
                         </td>
@@ -153,11 +194,11 @@
                             <span class="legend">Método de pago</span>
                             <t t-out="rdata['payment_policy']"/>
                         </td>
-                        <td class="field-cell field-cfdi-usage">
+                        <td class="field-cell field-cfdi-usage b">
                             <span class="legend">Uso CFDI</span>
                             <t t-out="rdata['usage_display']"/>
                         </td>
-                        <td class="field-cell field-payment-way">
+                        <td class="field-cell field-payment-way b">
                             <span class="legend">Forma de pago</span>
                             <t t-out="rdata['payment_way']"/>
                         </td>
@@ -170,10 +211,10 @@
                         <tr>
                             <th class="concept-part">Part.</th>
                             <th class="concept-description">Descripción</th>
-                            <th class="concept-packaging">Empaque</th>
-                            <th class="concept-key">Clave</th>
+                            <th class="concept-packaging">Clave SAT</th>
+                            <th class="concept-key">Uni. de M. SAT</th>
                             <th class="concept-uom">Uni. de M.</th>
-                            <th class="concept-quantity">Cant/Pzas. Kilos</th>
+                            <th class="concept-quantity">Cantidad</th>
                             <th class="concept-price">Precio U.</th>
                             <th class="concept-amount">Importe</th>
                         </tr>
@@ -202,6 +243,13 @@
                     </table>
 
                     <div class="stamp-area">
+
+                        <div class="stamp-label">Folio Fiscal:</div>
+                        <div class="stamp-content"><t t-out="cfdi.get('uuid') or o.l10n_mx_edi_cfdi_uuid or 'No disponible'"/></div>
+
+                        <div class="stamp-label">Fecha y hora de certificación:</div>
+                        <div class="stamp-content"><t t-out="cfdi.get('stamp_date') or 'No disponible'"/></div>
+
                         <div class="stamp-label">Sello Digital del Emisor:</div>
                         <div class="stamp-content"><t t-out="cfdi.get('sello') or 'No disponible'"/></div>
                         <div class="stamp-label">Sello Digital del SAT:</div>
@@ -211,16 +259,16 @@
                     </div>
 
                 </div>
-
-                <table class="rounded-box observations">
-                    <tr>
-                        <td class="box-pad">
-                            <span class="legend">Observaciones:</span>
-                            <t t-if="o.narration"><span t-out="o.narration"/></t>
-                        </td>
-                    </tr>
-                </table>
-
+                    <table class="rounded-box observations">
+                <t t-if="o.narration">
+                        <tr>
+                            <td class="box-pad">
+                                <span class="legend">Terminos y condiciones</span>
+                                <span t-out="o.narration"/>
+                            </td>
+                        </tr>
+                </t>
+                    </table>
                 <table class="bottom-area">
                     <tr>
                         <td class="qr-cell">
@@ -234,12 +282,12 @@
                                         <div class="promissory-title">PAGARÉ</div>
                                         <div class="small">
                                             Debo(emos) y pagaré(mos) incondicionalmente a la orden de:<br/>
-                                            <span class="b"><t t-out="company.name"/></span>SA de CV.<br/>
+                                            <span class="b"><t t-out="company.name"/>, S.A. de C.V.</span><br/>
                                             Valor recibido en mercancía. En caso de mora se generará un interés moratorio del
-                                            <span class="b">4% mensual</span>.<br/>
+                                            <span class="b">3% mensual</span>.<br/>
                                             <span class="b">Pagar por transferencia a:</span><br/>
                                             <t t-foreach="rdata['bank_accounts']" t-as="bank">
-                                                CLABE <t t-out="bank['bank']"/>: <t t-out="bank['number']"/><br/>
+                                               <t t-out="bank['bank']"/> CLABE: <t t-out="bank['code']"/><br/>
                                             </t>
                                         </div>
                                     </td>
@@ -282,6 +330,11 @@
                                             <tr>
                                                 <td class="lbl">RETENCIÓN I.V.A.:</td>
                                                 <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(taxes['retenido'])"/></td>
+                                            </tr>
+                                            <tr class="grand">
+                                                <td class="lbl">Divisa:</td>
+                                                <td class="tr"><t t-out="o.currency_id.name"/>
+                                                </td>
                                             </tr>
                                             <tr class="grand">
                                                 <td class="lbl">Total:</td>
