@@ -242,21 +242,49 @@
                         </t>
                     </table>
 
-                    <div class="stamp-area">
+                    <table class="stamp-area">
+                        <tr>
+                            <td class="stamp-qr-cell">
+                                <img t-if="cfdi.get('barcode_src')" class="stamp-qr-code"
+                                    t-att-src="cfdi.get('barcode_src')" alt="QR"/>
+                                <div t-else="" class="stamp-qr-empty">QR no disponible</div>
+                            </td>
+                            <td class="stamp-data-cell">
+                                <div class="stamp-bar">Sello digital del emisor</div>
+                                <div class="stamp-content"><t t-out="cfdi.get('sello') or 'No disponible'"/></div>
 
-                        <div class="stamp-label">Folio Fiscal:</div>
-                        <div class="stamp-content"><t t-out="cfdi.get('uuid') or o.l10n_mx_edi_cfdi_uuid or 'No disponible'"/></div>
+                                <div class="stamp-bar">Sello digital del SAT</div>
+                                <div class="stamp-content"><t t-out="cfdi.get('sello_sat') or 'No disponible'"/></div>
 
-                        <div class="stamp-label">Fecha y hora de certificación:</div>
-                        <div class="stamp-content"><t t-out="cfdi.get('stamp_date') or 'No disponible'"/></div>
+                                <div class="stamp-bar">Cadena original del complemento de certificación digital del SAT</div>
+                                <div class="stamp-content"><t t-out="cfdi.get('cadena') or 'No disponible'"/></div>
 
-                        <div class="stamp-label">Sello Digital del Emisor:</div>
-                        <div class="stamp-content"><t t-out="cfdi.get('sello') or 'No disponible'"/></div>
-                        <div class="stamp-label">Sello Digital del SAT:</div>
-                        <div class="stamp-content"><t t-out="cfdi.get('sello_sat') or 'No disponible'"/></div>
-                        <div class="stamp-label">Cadena Original del complemento de certificación digital del SAT:</div>
-                        <div class="stamp-content"><t t-out="cfdi.get('cadena') or 'No disponible'"/></div>
-                    </div>
+                                <div class="stamp-bar">Información adicional</div>
+                                <div class="stamp-extra">
+                                    <span class="b">Certificado del emisor:</span>
+                                    <t t-out="cfdi.get('certificate_number') or ''"/>
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Certificado del SAT:</span>
+                                    <t t-out="cfdi.get('certificate_sat_number') or ''"/>
+                                    
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Régimen fiscal:</span>
+                                    <t t-out="company.l10n_mx_edi_fiscal_regime or ''"/>
+                                    
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Fecha de certificación:</span>
+                                    <t t-out="cfdi.get('stamp_date') or ''"/>
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Folio fiscal:</span>
+                                    <t t-out="cfdi.get('uuid') or o.l10n_mx_edi_cfdi_uuid or ''"/>
+                                </div>
+                                <div class="stamp-printed-note">
+                                    Este documento es una representación impresa de un CFDI
+                                    <span class="b">Versión: <t t-out="rdata['version']"/></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
 
                 </div>
                 <t t-if="o.narration">
@@ -281,10 +309,6 @@
 
                 <table class="bottom-area">
                     <tr>
-                        <td class="qr-cell">
-                            <img t-if="cfdi.get('barcode_src')" class="qr-code"
-                                t-att-src="cfdi.get('barcode_src')" alt="QR"/>
-                        </td>
                         <td class="bottom-content">
                             <table class="promissory">
                                 <tr>
@@ -351,25 +375,6 @@
                                                 <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(o.amount_total)"/></td>
                                             </tr>
                                         </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <table class="cert-area">
-                                <tr>
-                                    <td class="cert-row">
-                                        <div>
-                                            <span class="b">Nro. de Serie del Certificado del SAT:</span>
-                                            <t t-out="cfdi.get('certificate_sat_number') or ''"/>
-                                        </div>
-                                        <div>
-                                            <span class="b">Nro. de Serie del CSD:</span>
-                                            <t t-out="cfdi.get('certificate_number') or ''"/>
-                                        </div>
-                                    </td>
-                                    <td class="printed-note">
-                                        Este documento es una representación impresa de un CFDI<br/>
-                                        <span class="b">Versión: <t t-out="rdata['version']"/></span>
                                     </td>
                                 </tr>
                             </table>
