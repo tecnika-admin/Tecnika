@@ -332,6 +332,21 @@
 .concepts .small {
     font-size: 7.5px;
 }
+/* Secciones y notas capturadas en las líneas de la factura. */
+.concept-section td {
+    background: #eef3fb !important;
+    color: #174290;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 3px 4px !important;
+    border-top: 1px solid #c9d6ea !important;
+    border-bottom: 1px solid #c9d6ea !important;
+}
+.concept-note td {
+    font-style: italic;
+    color: #555;
+    padding: 2px 4px !important;
+}
 .stamp-area {
     border-collapse: separate !important;
     border-spacing: 10px 0;
@@ -403,6 +418,9 @@
     text-align: center;
 }
 
+.reference-box {
+    margin-top: 6px !important;
+}
 .observations {
     min-height: 40px;
     margin-top: 10px !important;
