@@ -19,7 +19,7 @@
         <t t-set="cfdi" t-value="rdata['cfdi']"/>
         <t t-set="taxes" t-value="rdata['taxes']"/>
         <t t-set="cur" t-value="o.currency_id.symbol or '$'"/>
-        <t t-set="lines" t-value="o.invoice_line_ids.filtered(lambda l: l.display_type == 'product')"/>
+        <t t-set="rows" t-value="o._cfdi_report_lines()"/>
 
         <div class="article" t-att-data-oe-model="o and o._name"
              t-att-data-oe-id="o and o.id"
@@ -158,6 +158,10 @@
                                                 <td class="k">Fecha de emisión:</td>
                                                 <td><t t-out="o.invoice_date.strftime('%d/%m/%Y') if o.invoice_date else ''"/></td>
                                             </tr>
+                                            <tr t-if="rdata['emission_time']">
+                                                <td class="k">Hora de emisión:</td>
+                                                <td><t t-out="rdata['emission_time']"/></td>
+                                            </tr>
                                             <tr>
                                                 <td class="k">Expedido:</td>
                                                 <td class="break" style="font-size: 10px;">
@@ -205,6 +209,15 @@
                     </tr>
                 </table>
 
+                <table class="rounded-box reference-box" t-if="o.ref and o.ref != o.invoice_origin">
+                    <tr>
+                        <td class="box-pad">
+                            <span class="legend">Referencia</span>
+                            <t t-out="o.ref"/>
+                        </td>
+                    </tr>
+                </table>
+
                 <!-- Conceptos, sellos, pagos y leyenda dentro de un solo marco. -->
                 <div class="main-frame">
                     <table class="concepts">
@@ -218,9 +231,10 @@
                             <th class="concept-price">Precio U.</th>
                             <th class="concept-amount">Importe</th>
                         </tr>
-                        <t t-foreach="lines" t-as="line">
-                            <tr>
-                                <td class="tc"><t t-out="line_index + 1"/></td>
+                        <t t-foreach="rows" t-as="row">
+                            <t t-set="line" t-value="row['line']"/>
+                            <tr t-if="row['type'] == 'product'">
+                                <td class="tc"><t t-out="row['partida']"/></td>
                                 <td class="concept-desc">
                                     <span class="upper">
                                         <t t-out="line.name or (line.product_id.display_name or '')"/>
@@ -238,6 +252,12 @@
                                 <td class="tr"><t t-out="'{:,.2f}'.format(line.quantity)"/></td>
                                 <td class="tr"><t t-out="'{:,.2f}'.format(line.price_unit)"/></td>
                                 <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(line.price_subtotal)"/></td>
+                            </tr>
+                            <tr t-elif="row['type'] == 'line_section'" class="concept-section">
+                                <td colspan="8" class="break"><t t-out="line.name or ''"/></td>
+                            </tr>
+                            <tr t-else="" class="concept-note">
+                                <td colspan="8" class="break"><t t-out="line.name or ''"/></td>
                             </tr>
                         </t>
                     </table>

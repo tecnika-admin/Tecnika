@@ -2,7 +2,7 @@
 import base64
 import functools
 
-from odoo import models
+from odoo import fields, models
 from odoo.tools import file_open
 from odoo.tools.image import image_data_uri
 
@@ -62,6 +62,7 @@ class AccountMove(models.Model):
             'payment_policy': self.l10n_mx_edi_payment_policy or '',
             'payment_way': self._cfdi_payment_way_display(cfdi),
             'credit_days': self._cfdi_credit_days(),
+            'emission_time': self._cfdi_emission_time(cfdi),
             'taxes': self._cfdi_tax_summary(),
             'bank_accounts': self._cfdi_bank_accounts(),
             'logo_src': self._cfdi_static_image('header_icon.png'),
@@ -110,6 +111,45 @@ class AccountMove(models.Model):
         method = self.l10n_mx_edi_payment_method_id
         if method:
             return ' - '.join(part for part in (method.code, method.name) if part)
+        return ''
+
+    def _cfdi_report_lines(self):
+        """Ordered lines for the concepts table: products, sections and notes.
+
+        Sections (``line_section``) and notes (``line_note``) are kept in their
+        original position so the layout matches the invoice form. Only product
+        lines consume a ``partida`` (sequence) number.
+        """
+        self.ensure_one()
+        rows = []
+        partida = 0
+        displayed = self.invoice_line_ids.filtered(
+            lambda l: l.display_type in ('product', 'line_section', 'line_note')
+        )
+        for line in displayed:
+            if line.display_type == 'product':
+                partida += 1
+                rows.append({'type': 'product', 'partida': partida, 'line': line})
+            else:
+                rows.append({'type': line.display_type, 'line': line})
+        return rows
+
+    def _cfdi_emission_time(self, cfdi):
+        """Emission clock time (``hh:mm:ss``) of the CFDI.
+
+        Prefers the ``Fecha`` attribute of the stamped CFDI node (already in
+        local time). Falls back to the stored post time converted to the user
+        timezone, so drafts/un-stamped invoices still show a sensible value.
+        """
+        self.ensure_one()
+        node = cfdi.get('cfdi_node')
+        if node is not None:
+            fecha = node.get('Fecha') or ''
+            if 'T' in fecha:
+                return fecha.split('T', 1)[1][:8]
+        if self.l10n_mx_edi_post_time:
+            local_dt = fields.Datetime.context_timestamp(self, self.l10n_mx_edi_post_time)
+            return local_dt.strftime('%H:%M:%S')
         return ''
 
     def _cfdi_credit_days(self):
