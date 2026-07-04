@@ -13,6 +13,7 @@
         'om_hr_payroll_account_ee',
     ],
     'data': [
+        'views/hr_work_entry_menu.xml',
     ],
     'installable': True,
     'application': False,
