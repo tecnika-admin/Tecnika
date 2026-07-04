@@ -1,0 +1,594 @@
+@font-face {
+    font-family: "Montserrat";
+    src: url("/custom_invoice_report/static/src/fonts/Montserrat-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+}
+@font-face {
+    font-family: "Montserrat";
+    src: url("/custom_invoice_report/static/src/fonts/Montserrat-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+}
+@font-face {
+    font-family: "Poppins";
+    src: url("/custom_invoice_report/static/src/fonts/Poppins-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+}
+@font-face {
+    font-family: "Poppins";
+    src: url("/custom_invoice_report/static/src/fonts/Poppins-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+}
+
+.cfdi-page {
+    font-family: "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.12;
+    color: #1d1d1b;
+    position: relative;
+    padding: 0;
+}
+.cfdi-page, .cfdi-page * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-sizing: border-box;
+}
+.cfdi-page table {
+    border: none !important;
+    border-collapse: collapse;
+    width: 100%;
+}
+.cfdi-page td,
+.cfdi-page th {
+    vertical-align: top;
+}
+
+.b { font-weight: bold; }
+.tc { text-align: center; }
+.tr { text-align: right; }
+.cfdi-page td.tc,
+.cfdi-page th.tc,
+.cfdi-page td.tr,
+.cfdi-page th.tr {
+    vertical-align: middle;
+}
+.upper { text-transform: uppercase; }
+.small { font-size: 11.7px; }
+.micro { font-size: 9.5px; }
+.break { word-break: break-all; overflow-wrap: anywhere; }
+
+.cfdi-header {
+    margin-bottom: 5px;
+    border: 0 !important;
+    border-collapse: separate !important;
+}
+.cfdi-header td {
+    padding: 0 5px;
+    border: 0 !important;
+}
+.cfdi-header-logo {
+    width: 18%;
+    text-align: left;
+    vertical-align: middle;
+}
+.cfdi-header-branches {
+    width: 68%;
+    vertical-align: top;
+}
+.brand-logo {
+    width: 150px;
+    height: auto;
+    margin:0;
+    padding:0;
+}
+.branches {
+    table-layout: fixed;
+    border-collapse: separate !important;
+    border-spacing: 6px 0;
+}
+.branches td {
+    border: 0 !important;
+    padding: 1px 2px;
+    font-size: 11px;
+    line-height: 1.08;
+    text-align: center;
+    vertical-align: top;
+}
+.branch-title {
+    color: #174290;
+    font-family: "Poppins", "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.05;
+    text-transform: uppercase;
+}
+
+    
+.rounded-box {
+    border: 0 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    overflow: visible;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    background: transparent !important;
+
+}
+/* El borde + radio viven en la celda (como .field-cell), porque
+   wkhtmltopdf no pinta el borde de una tabla con border-radius. */
+.rounded-box > tbody > tr > td,
+.rounded-box > tr > td {
+    border: 1.25px solid #1d1d1b !important;
+    border-radius: 5px;
+    position: relative;
+}
+.box-pad {
+    padding: 7px 7px 5px;
+}
+.legend {
+    position: absolute;
+    top: -6px;
+    left: 24px;
+    padding: 0 8px;
+    background: #fff !important;
+    color: #174290;
+    font-family: "Poppins", "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    font-size: 11.2px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .15px;
+    white-space: nowrap;
+}
+.legend-center {
+    top: -6px;
+    left: 50px;
+    right: 50px;
+    display: block;
+    text-align: center;
+    padding: 0 3px;
+    font-size: 11.2px;
+    letter-spacing: 0;
+
+    position: absolute;
+    background: #fff !important;
+    color: #174290;
+    font-family: "Poppins", "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.box-value {
+    min-height: 45px;
+    font-size: 14.4px;
+    line-height: 1.14;
+}
+
+.customer-invoice-row {
+    margin-top: 21px;
+    margin-bottom: 4px;
+    border: 0 !important;
+    border-collapse: separate !important;
+    border-spacing: 6px 0;
+    table-layout: fixed;
+}
+.customer-invoice-row > tbody > tr > td,
+.customer-invoice-row > tr > td {
+    border: 1.25px solid #1d1d1b !important;
+    border-top: 2px solid #15af97 !important;
+    border-radius: 5px;
+    position: relative;
+    vertical-align: top;
+}
+.issuer-cell {
+    width: 40%;
+}
+.customer-cell {
+    width: 40%;
+}
+.issuer-box,
+.customer-box,
+.invoice-card {
+    margin: 0 !important;
+}
+.issuer-box > tbody > tr > td,
+.issuer-box > tr > td,
+.customer-box > tbody > tr > td,
+.customer-box > tr > td,
+.invoice-card > tbody > tr > td,
+.invoice-card > tr > td {
+    border: 0 !important;
+    border-radius: 0;
+    position: static;
+}
+.party-box-value {
+    font-size: 12px;
+    line-height: 1.12;
+}
+.party-name {
+    color: #174290;
+    font-family: "Poppins", "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    font-size: 14.4px;
+    font-weight: bold;
+    line-height: 1.05;
+}
+.party-address {
+    margin-top: 1px;
+}
+.party-rfc {
+    color: #1d1d1b;
+    font-size: 14.4px;
+    font-weight: bold;
+    margin-top: 2px;
+}
+.invoice-cell {
+    width: 20%;
+    position: relative;
+}
+.invoice-folio {
+    color: #15af97;
+    font-family: "Poppins", "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    text-align: center;
+    font-size: 25px;
+    line-height: 1;
+    font-weight: bold;
+    margin: 0 auto 4px;
+    padding-bottom: 3px;
+    width: 78%;
+}
+.kv td {
+    padding: .5px 2px;
+    font-size: 12px;
+    line-height: 1.08;
+}
+.invoice-kv {
+    border: 0 !important;
+    border-collapse: separate !important;
+    margin-top: 13px;
+}
+.kv .k {
+    width: 47%;
+    text-align: right;
+    font-weight: bold;
+}
+
+.field-row {
+    border-collapse: separate !important;
+    border-spacing: 4px 0;
+    margin-top: 2px;
+    margin-bottom: 3px;
+}
+.field-cell {
+    border: 1.25px solid #1d1d1b !important;
+    border-top: 2px solid #15af97 !important;
+    border-radius: 5px;
+    height: 30px;
+    position: relative;
+    text-align: center;
+    padding: 10px 3px 3px;
+    font-size: 14px;
+    line-height: 1.06;
+    overflow: visible;
+}
+.field-order { width: 16%; }
+.field-credit-days { width: 14%; }
+.field-due-date { width: 18%; }
+.field-payment-policy { width: 14%; }
+.field-cfdi-usage { width: 19%; }
+.field-payment-way { width: 19%; }
+.field-cell .legend {
+    top: -6px;
+    left: 12px;
+    right: 12px;
+    display: block;
+    text-align: center;
+    padding: 0 3px;
+    font-size: 9.6px;
+    letter-spacing: 0;
+}
+
+.main-frame {
+    border: 1.3px solid #1d1d1b !important;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 3px;
+    min-height: 610px;
+    position: relative;
+}
+.concepts {
+    border-collapse: collapse !important;
+    table-layout: fixed;
+}
+.concept-part { width: 4%; }
+.concept-description { width: 36%; }
+.concept-packaging { width: 10%; }
+.concept-key { width: 7%; }
+.concept-uom { width: 9%; }
+.concept-quantity { width: 11%; }
+.concept-price { width: 11%; }
+.concept-amount { width: 12%; }
+.concepts th {
+    background: #174290 !important;
+    border-bottom: 2px solid #15af97 !important;
+    color: #fff;
+    padding: 2px 3px;
+    font-size: 10.7px;
+    line-height: 1.05;
+    font-weight: bold;
+    text-align: center;
+}
+.concepts td {
+    border: 0 !important;
+    padding: 2px 4px 1px;
+    font-size: 11px;
+    line-height: 1.1;
+}
+.concept-desc {
+    font-size: 11px;
+    line-height: 1.1;
+}
+.concepts .small {
+    font-size: 7.5px;
+}
+/* Secciones y notas capturadas en las líneas de la factura. */
+.concept-section td {
+    background: #eef3fb !important;
+    color: #174290;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 3px 4px !important;
+    border-top: 1px solid #c9d6ea !important;
+    border-bottom: 1px solid #c9d6ea !important;
+}
+.concept-note td {
+    font-style: italic;
+    color: #555;
+    padding: 2px 4px !important;
+}
+.stamp-area {
+    border-collapse: separate !important;
+    border-spacing: 10px 0;
+    margin: 18px 0 0;
+    position: relative;
+    table-layout: fixed;
+    z-index: 1;
+}
+.stamp-qr-cell {
+    width: 132px;
+    text-align: center;
+    vertical-align: top;
+    padding: 4px 0 0 8px;
+}
+.stamp-qr-code {
+    width: 118px;
+    height: 118px;
+}
+.stamp-qr-empty {
+    border: 1.2px solid #1d1d1b !important;
+    color: #5f6368;
+    font-size: 10px;
+    font-weight: bold;
+    height: 118px;
+    line-height: 118px;
+    text-align: center;
+    width: 118px;
+}
+.stamp-data-cell {
+    vertical-align: top;
+    padding-right: 8px;
+}
+.stamp-bar {
+    background: #7a7a7a !important;
+    border-bottom: 1.5px solid #5f6368 !important;
+    color: #fff;
+    font-family: "Poppins", "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    font-size: 10.8px;
+    font-weight: bold;
+    line-height: 1.05;
+    margin: 6px 0 3px;
+    padding: 2px 6px;
+    text-align: center;
+}
+.stamp-content {
+    font-family: "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    font-size: 10px;
+    line-height: 1.18;
+    min-height: 22px;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
+.stamp-extra {
+    font-size: 10.2px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+.stamp-separator {
+    color: #6f6f6f;
+    font-weight: bold;
+    padding: 0 2px;
+}
+.stamp-printed-note {
+    color: #1d1d1b;
+    font-size: 10.5px;
+    font-weight: bold;
+    line-height: 1.15;
+    margin-top: 7px;
+    text-align: center;
+}
+
+.reference-box {
+    margin-top: 6px !important;
+}
+.observations {
+    min-height: 40px;
+    margin-top: 10px !important;
+}
+.observations .box-pad {
+    padding-top: 6px;
+    min-height: 38px;
+}
+/* El campo "Términos y condiciones" (o.narration) es HTML y puede traer
+   tablas/divs con borde o fondo pegados desde otra fuente. Se neutralizan
+   para que solo se vea el borde redondeado del .rounded-box, no un doble marco. */
+.observations .box-pad table,
+.observations .box-pad tr,
+.observations .box-pad td,
+.observations .box-pad div,
+.observations .box-pad p {
+    border: 0 !important;
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* ----------------------------------------------------------------
+   Zona inferior (pagaré + totales).
+   Todas las tablas usan table-layout:fixed con anchos explícitos
+   para que cambiar un padding NO reacomode el texto ni dispare el
+   alto de la fila (bug de auto-layout en wkhtmltopdf).
+   ---------------------------------------------------------------- */
+.bottom-area {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse !important;
+    border: 1.2px solid #1d1d1b !important;
+}
+/* Marco completo del bloque inferior. collapse evita el bug de borde+radio. */
+.bottom-area > tbody > tr > td,
+.bottom-area > tr > td {
+    border: 1.2px solid #1d1d1b !important;
+}
+.bottom-content {
+    vertical-align: top;
+}
+
+.promissory {
+    width: 100%;
+    table-layout: fixed;
+    border: 0 !important;
+    border-collapse: separate !important;
+    margin-bottom: 3px;
+}
+/* El padding-top de esta celda es la perilla para separar "PAGARÉ".
+   Con table-layout:fixed solo agrega ese alto, sin reflujo. */
+.promissory-text {
+    width: 62%;
+    vertical-align: top;
+    padding: 8px 8px 5px;
+    border: 0 !important;
+}
+.promissory-sign {
+    width: 38%;
+    vertical-align: top;
+    padding: 7px 8px 4px;
+    border: 0 !important;
+}
+.promissory-title {
+    color: #174290;
+    font-family: "Poppins", "Montserrat", "DejaVu Sans", Arial, Helvetica, sans-serif;
+    text-align: center;
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+.signature-line {
+    border-top: 1px solid #1d1d1b;
+    margin: 24px 8px 0;
+    padding-top: 2px;
+    text-align: center;
+    font-size: 10.2px;
+}
+.promissory-date {
+    margin-top: 2px;
+}
+
+.vendor-totals {
+    width: 100%;
+    table-layout: fixed;
+    border: 0 !important;
+    border-collapse: separate !important;
+}
+.vt-left {
+    width: 69%;
+    vertical-align: top;
+    border: 0 !important;
+}
+.vt-right {
+    width: 31%;
+    vertical-align: top;
+    padding-left: 5px;
+    border: 0 !important;
+}
+.mini-grid {
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 4px 0;
+}
+.mini-grid td {
+    border: 1.2px solid #1d1d1b !important;
+    border-top: 2px solid #15af97 !important;
+    border-radius: 5px;
+    text-align: center;
+    height: 21px;
+    padding: 2px 3px 1px;
+    font-size: 11.2px;
+    line-height: 1.05;
+    position: relative;
+}
+.mini-grid .mini-title {
+    color: #174290;
+    display: block;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.amount-words {
+    border: 1.2px solid #1d1d1b !important;
+    border-radius: 5px;
+    margin: 3px 4px 2px;
+    min-height: 23px;
+    padding: 3px 6px;
+    font-size: 11.4px;
+    text-align: center;
+}
+.totals {
+    width: 100%;
+    border: 1.2px solid #1d1d1b !important;
+    border-top: 2px solid #15af97 !important;
+    border-collapse: separate !important;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.totals td {
+    padding: 1.5px 5px;
+    font-size: 12.3px;
+    line-height: 1.07;
+}
+.totals .lbl {
+    width: 54%;
+    text-align: right;
+    font-weight: bold;
+}
+.totals .grand td {
+    color: #174290;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.cfdi-watermark {
+    position: fixed;
+    top: 200px;
+    right: -500px;
+    width: 1000px;
+    height: 1000px;
+    opacity: .035;
+    z-index: 0;
+    pointer-events: none;
+}
+.cfdi-watermark img {
+    width: 1000px;
+    height: 1000px;
+}

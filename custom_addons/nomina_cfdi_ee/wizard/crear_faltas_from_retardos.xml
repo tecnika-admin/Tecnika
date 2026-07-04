@@ -21,5 +21,13 @@
             </form>
         </field>
     </record>
-    
+
+    <record id="action_calculo_retardos" model="ir.actions.act_window">
+        <field name="name">Revisar retardos</field>
+        <field name="res_model">crear.faltas.from.retardos</field>
+        <field name="target">new</field>
+        <field name="view_mode">form</field>
+        <field name="binding_model_id" ref="nomina_cfdi_ee.model_retardo_nomina"/>
+    </record>
+
 </odoo>

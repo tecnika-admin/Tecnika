@@ -9,7 +9,7 @@
             <group col="4" string="Generales">
                 <field name="employee_id" required="1"/>
                 <field name="fecha_inicio" required="1"/>
-                <field name="contract_id" required="1" domain="[('employee_id','=',employee_id),('state','!=','cancel')]" />
+                <field name="contract_id" required="1" domain="[('employee_id','=',employee_id)]" />
                 <field name="fecha_liquidacion" required="1"/>
                 <field name="tipo_de_baja" required="1"/>
             </group>

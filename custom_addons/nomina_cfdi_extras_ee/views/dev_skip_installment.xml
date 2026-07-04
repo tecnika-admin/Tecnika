@@ -76,7 +76,7 @@
             </list>
         </field>
     </record>
-    
+    <!--
     <record id="view_dev_skip_installment_filter" model="ir.ui.view">
         <field name="name">skip.installment.filter</field>
         <field name="model">dev.skip.installment</field>
@@ -95,7 +95,7 @@
                 </group>
             </search>
         </field>
-    </record>
+    </record>-->
     
     <record model="ir.actions.act_window" id="action_dev_skip_installment">
         <field name="name">Salto de deducción</field>

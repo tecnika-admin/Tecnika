@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!--  Reemplaza el cuerpo de la factura mexicana por el diseño CFDI.    -->
+    <!-- ================================================================== -->
+    <template id="report_invoice_document_cfdi_inherit"
+              inherit_id="l10n_mx_edi.report_invoice_document">
+        <xpath expr="//t[@t-call='web.external_layout']" position="replace">
+            <t t-call="custom_invoice_report.report_invoice_cfdi"/>
+        </xpath>
+    </template>
+
+    <!-- Cuerpo del CFDI. Autocontenido: no usa el external_layout de Odoo. -->
+    <template id="report_invoice_cfdi">
+        <t t-set="company" t-value="o.company_id"/>
+        <t t-set="partner" t-value="o.partner_id"/>
+        <t t-set="rdata" t-value="o._cfdi_get_render_data()"/>
+        <t t-set="cfdi" t-value="rdata['cfdi']"/>
+        <t t-set="taxes" t-value="rdata['taxes']"/>
+        <t t-set="cur" t-value="o.currency_id.symbol or '$'"/>
+        <t t-set="rows" t-value="o._cfdi_report_lines()"/>
+
+        <div class="article" t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o.partner_id.lang or o.company_id.partner_id.lang">
+            <div class="page cfdi-page">
+
+                <div class="cfdi-watermark">
+                    <img t-att-src="rdata['watermark_src']" alt=""/>
+                </div>
+
+                <!-- Encabezado abierto, sin caja exterior, como el formato muestra. -->
+                <table class="cfdi-header">
+                    <tr>
+                        <td class="cfdi-header-logo">
+                            <img class="brand-logo"
+                                t-att-src="rdata['logo_src']" alt="Tecnika"/>
+                        </td>
+                        <td class="cfdi-header-branches">
+                            <table class="branches">
+                                <tr>
+                                    <td>
+                                        <div class="branch-title">Los Mochis</div>
+                                        <div>Rosendo Castro No. 599, Local 1</div>
+                                        <div>Col. Centro C.P. 81200</div>
+                                        <div>Los Mochis, Sinaloa</div>
+                                        <div>Tel. (668) 818 8050</div>
+                                    </td>
+                                    <td>
+                                        <div class="branch-title">Mazatlán</div>
+                                        <div>Marina No. 6116 - 13C</div>
+                                        <div>Col. Marina C.P. 82013</div>
+                                        <div>Mazatlán, Sinaloa</div>
+                                        <div>Tel. (669) 930 0200</div>
+                                    </td>
+                                    <td>
+                                        <div class="branch-title">Tijuana</div>
+                                        <div>Fray Servando Teresa de</div>
+                                        <div>Mier 1351, Zona Urbana</div>
+                                        <div>Río TJ. C.P. 22010</div>
+                                        <div>Tijuana, Baja California</div>
+                                        <div>Tel. (667) 712 4444</div>
+                                    </td>
+                                    <td>
+                                        <div class="branch-title">CDMX</div>
+                                        <div>Gral. Pedro Antonio de los</div>
+                                        <div>Santos No. 96 - Int. 200</div>
+                                        <div>San Miguel Chapultepec</div>
+                                        <div>CDMX C.P. 11850</div>
+                                        <div>Tel. (55) 6650 8840</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Vendido a + Factura. Se conservan los mismos bloques existentes. -->
+                <table class="customer-invoice-row">
+                    <tr>
+                        <td class="issuer-cell">
+                            <table class="rounded-box issuer-box">
+                                <tr>
+                                    <td class="box-pad">
+                                        <span class="legend">Emisor</span>
+                                        <div class="box-value party-box-value">
+                                            <div class="party-name upper"><t t-out="company.name"/></div>
+                                            <div class="party-address">
+                                                <div class="party-rfc">
+                                                    RFC: <t t-out="company.vat or ''"/>
+                                                </div>
+                                                <div class="b">Domicilio:</div>
+                                                <div>
+                                                    <t t-out="company.street or ''"/>
+                                                    <t t-if="company.street2"> <t t-out="company.street2"/></t>
+                                                </div>
+                                                <div>
+                                                    <t t-out="company.zip or ''"/>
+                                                    <t t-out="(' ' + company.city) if company.city else ''"/>,
+                                                    <t t-out="company.state_id.name or ''"/>
+                                                </div>
+                                                <div><t t-out="company.country_id.name or ''"/></div>
+                                                <div t-if="company.l10n_mx_edi_fiscal_regime">
+                                                    Régimen: <span t-field="company.l10n_mx_edi_fiscal_regime"/>
+                                                </div>
+                                            </div>
+                                            
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td class="customer-cell">
+                            <table class="rounded-box customer-box">
+                                <tr>
+                                    <td class="box-pad">
+                                        <span class="legend">Receptor</span>
+                                        <div class="box-value party-box-value">
+                                            <div class="party-name upper"><t t-out="partner.name or ''"/></div>
+                                            <div class="party-address">
+                                                <div class="party-rfc">
+                                                    RFC: <t t-out="o.l10n_mx_edi_cfdi_customer_rfc or partner.vat or ''"/>
+                                                </div>
+                                                <div class="b">Domicilio:</div>
+                                                <div>
+                                                    <t t-out="partner.street or ''"/>
+                                                    <t t-if="partner.street2"> <t t-out="partner.street2"/></t>
+                                                </div>
+                                                <div>
+                                                    <t t-out="partner.zip or ''"/>
+                                                    <t t-out="(' ' + partner.city) if partner.city else ''"/>,
+                                                    <t t-out="partner.state_id.name or ''"/>
+                                                    <t t-out="(', ' + partner.country_id.name) if partner.country_id else ''"/>
+                                                </div>
+                                                <div t-if="partner.l10n_mx_edi_fiscal_regime">
+                                                    Régimen: <span t-field="partner.l10n_mx_edi_fiscal_regime"/>
+                                                </div>
+                                            </div>
+                                            
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td class="invoice-cell">
+                            <table class="rounded-box invoice-card">
+                                <tr>
+                                    <td class="box-pad">
+                                        <span class="legend-center">
+                                            <t t-if="o.move_type == 'out_refund'">Nota de crédito</t>
+                                            <t t-elif="o.move_type == 'out_invoice'">Factura</t>
+                                            <t t-else="">Comprobante</t>
+                                        </span>
+                                        <div class="invoice-folio"><t t-out="o.name or ''"/></div>
+                                        <table class="kv invoice-kv">
+                                            <tr>
+                                                <td class="k">Fecha de emisión:</td>
+                                                <td><t t-out="o.invoice_date.strftime('%d/%m/%Y') if o.invoice_date else ''"/></td>
+                                            </tr>
+                                            <tr t-if="rdata['emission_time']">
+                                                <td class="k">Hora de emisión:</td>
+                                                <td><t t-out="rdata['emission_time']"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="k">Expedido:</td>
+                                                <td class="break" style="font-size: 10px;">
+                                                    <t t-out="(company.city or company.state_id.name or '').upper()"/>
+                                                    <t t-if="company.state_id">,
+                                                        <t t-out="(company.state_id.code or company.state_id.name).upper()"/>.
+                                                    </t>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Fila fiscal en campos redondeados con título flotante. -->
+                <table class="field-row" style="margin-top: 0.5em;">
+                    <tr>
+                        <td class="field-cell field-order b">
+                            <span class="legend">Pedido</span>
+                            <t t-out="o.invoice_origin or o.ref or ''"/>
+                        </td>
+                        <td class="field-cell field-credit-days b">
+                            <span class="legend">Días de crédito</span>
+                            <t t-out="rdata['credit_days']"/>
+                        </td>
+                        <td class="field-cell field-due-date b">
+                            <span class="legend">Fecha de vencimiento</span>
+                            <t t-out="o.invoice_date_due.strftime('%d/%m/%Y') if o.invoice_date_due else ''"/>
+                        </td>
+                        <td class="field-cell field-payment-policy b">
+                            <span class="legend">Método de pago</span>
+                            <t t-out="rdata['payment_policy']"/>
+                        </td>
+                        <td class="field-cell field-cfdi-usage b">
+                            <span class="legend">Uso CFDI</span>
+                            <t t-out="rdata['usage_display']"/>
+                        </td>
+                        <td class="field-cell field-payment-way b">
+                            <span class="legend">Forma de pago</span>
+                            <t t-out="rdata['payment_way']"/>
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="rounded-box reference-box" t-if="o.ref and o.ref != o.invoice_origin">
+                    <tr>
+                        <td class="box-pad">
+                            <span class="legend">Referencia</span>
+                            <t t-out="o.ref"/>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Conceptos, sellos, pagos y leyenda dentro de un solo marco. -->
+                <div class="main-frame">
+                    <table class="concepts">
+                        <tr>
+                            <th class="concept-part">Part.</th>
+                            <th class="concept-description">Descripción</th>
+                            <th class="concept-packaging">Clave SAT</th>
+                            <th class="concept-key">Uni. de M. SAT</th>
+                            <th class="concept-uom">Uni. de M.</th>
+                            <th class="concept-quantity">Cantidad</th>
+                            <th class="concept-price">Precio U.</th>
+                            <th class="concept-amount">Importe</th>
+                        </tr>
+                        <t t-foreach="rows" t-as="row">
+                            <t t-set="line" t-value="row['line']"/>
+                            <tr t-if="row['type'] == 'product'">
+                                <td class="tc"><t t-out="row['partida']"/></td>
+                                <td class="concept-desc">
+                                    <span class="upper">
+                                        <t t-out="line.name or (line.product_id.display_name or '')"/>
+                                    </span>
+                                    <t t-set="series" t-value="o._cfdi_line_series(line)"/>
+                                    <t t-if="series">
+                                        <div class="small break">
+                                            Números de serie: <t t-out="', '.join(series)"/>
+                                        </div>
+                                    </t>
+                                </td>
+                                <td class="tc"><t t-out="line._get_product_unspsc_code() or ''"/></td>
+                                <td class="tc"><t t-out="line._get_uom_unspsc_code() or ''"/></td>
+                                <td class="tc"><t t-out="line.product_uom_id.name or ''"/></td>
+                                <td class="tr"><t t-out="'{:,.2f}'.format(line.quantity)"/></td>
+                                <td class="tr"><t t-out="'{:,.2f}'.format(line.price_unit)"/></td>
+                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(line.price_subtotal)"/></td>
+                            </tr>
+                            <tr t-elif="row['type'] == 'line_section'" class="concept-section">
+                                <td colspan="8" class="break"><t t-out="line.name or ''"/></td>
+                            </tr>
+                            <tr t-else="" class="concept-note">
+                                <td colspan="8" class="break"><t t-out="line.name or ''"/></td>
+                            </tr>
+                        </t>
+                    </table>
+
+                    <table class="stamp-area">
+                        <tr>
+                            <td class="stamp-qr-cell">
+                                <img t-if="cfdi.get('barcode_src')" class="stamp-qr-code"
+                                    t-att-src="cfdi.get('barcode_src')" alt="QR"/>
+                                <div t-else="" class="stamp-qr-empty">QR no disponible</div>
+                            </td>
+                            <td class="stamp-data-cell">
+                                <div class="stamp-bar">Sello digital del emisor</div>
+                                <div class="stamp-content"><t t-out="cfdi.get('sello') or 'No disponible'"/></div>
+
+                                <div class="stamp-bar">Sello digital del SAT</div>
+                                <div class="stamp-content"><t t-out="cfdi.get('sello_sat') or 'No disponible'"/></div>
+
+                                <div class="stamp-bar">Cadena original del complemento de certificación digital del SAT</div>
+                                <div class="stamp-content"><t t-out="cfdi.get('cadena') or 'No disponible'"/></div>
+
+                                <div class="stamp-bar">Información adicional</div>
+                                <div class="stamp-extra">
+                                    <span class="b">Certificado del emisor:</span>
+                                    <t t-out="cfdi.get('certificate_number') or ''"/>
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Certificado del SAT:</span>
+                                    <t t-out="cfdi.get('certificate_sat_number') or ''"/>
+                                    
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Régimen fiscal:</span>
+                                    <t t-out="company.l10n_mx_edi_fiscal_regime or ''"/>
+                                    
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Fecha de certificación:</span>
+                                    <t t-out="cfdi.get('stamp_date') or ''"/>
+                                    <span class="stamp-separator">|</span>
+                                    <span class="b">Folio fiscal:</span>
+                                    <t t-out="cfdi.get('uuid') or o.l10n_mx_edi_cfdi_uuid or ''"/>
+                                </div>
+                                <div class="stamp-printed-note">
+                                    Este documento es una representación impresa de un CFDI
+                                    <span class="b">Versión: <t t-out="rdata['version']"/></span>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                </div>
+                <t t-if="o.narration">
+                    <table class="rounded-box observations">
+                            <tr>
+                                <td class="box-pad">
+                                    <span class="legend">Terminos y condiciones</span>
+                                    <span t-out="o.narration"/>
+                                </td>
+                            </tr>
+                    </table>
+                </t>
+
+                <table class="rounded-box observations">
+                    <tr>
+                        <td class="box-pad">
+                            <span class="legend">Importante</span>
+                            <span>Conforme a las políticas internas de Tecnika Global, las solicitudes de cancelación o corrección de CFDI deberán realizarse dentro del mes de emisión o, a más tardar, el día 5 del mes siguiente.</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="bottom-area">
+                    <tr>
+                        <td class="bottom-content">
+                            <table class="promissory">
+                                <tr>
+                                    <td class="promissory-text">
+                                        <div class="promissory-title">PAGARÉ</div>
+                                        <div class="small">
+                                            Debo(emos) y pagaré(mos) incondicionalmente a la orden de:<br/>
+                                            <span class="b"><t t-out="company.name"/>, S.A. de C.V.</span><br/>
+                                            Valor recibido en mercancía. En caso de mora se generará un interés moratorio del
+                                            <span class="b">3% mensual</span>.<br/>
+                                            <span class="b">Pagar por transferencia a:</span><br/>
+                                            <t t-foreach="rdata['bank_accounts']" t-as="bank">
+                                               <t t-out="bank['bank']"/> CLABE: <t t-out="bank['code']"/><br/>
+                                            </t>
+                                        </div>
+                                    </td>
+                                    <td class="promissory-sign">
+                                        <div class="tc b micro">RECIBÍ DE CONFORMIDAD:</div>
+                                        <div class="tc b small promissory-date">
+                                            <t t-out="o.invoice_date.strftime('%d-%b-%Y') if o.invoice_date else ''"/>
+                                        </div>
+                                        <div class="signature-line">SELLO, NOMBRE Y FIRMA</div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table class="vendor-totals">
+                                <tr>
+                                    <td class="vt-left">
+                                        <table class="mini-grid">
+                                            <tr>
+                                                <td>
+                                                    <span class="mini-title">Vendedor</span>
+                                                    <t t-out="o.invoice_user_id.name or ''"/>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        <div class="amount-words">
+                                            <span class="b">Importe en letras:</span>
+                                            <t t-out="o.amount_total_words or ''"/>
+                                        </div>
+                                    </td>
+                                    <td class="vt-right">
+                                        <table class="totals">
+                                            <tr>
+                                                <td class="lbl">SUBTOTAL:</td>
+                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(o.amount_untaxed)"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">I.V.A.:</td>
+                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(taxes['traslado'])"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">RETENCIÓN I.V.A.:</td>
+                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(taxes['retenido'])"/></td>
+                                            </tr>
+                                            <tr class="grand">
+                                                <td class="lbl">Divisa:</td>
+                                                <td class="tr"><t t-out="o.currency_id.name"/>
+                                                </td>
+                                            </tr>
+                                            <tr class="grand">
+                                                <td class="lbl">Total:</td>
+                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(o.amount_total)"/></td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </div>
+    </template>
+
+</odoo>

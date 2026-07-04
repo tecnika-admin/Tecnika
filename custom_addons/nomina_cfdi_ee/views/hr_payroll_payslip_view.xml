@@ -173,15 +173,13 @@
                                 <field name="slip_ids" force_save="1"/>
                             </page>
                             <page name="otras_entradas" string="Otras Entradas" invisible="company_cfdi != True">
-                                <group  string="Otras entradas">
-                                    <field name="tabla_otras_entradas">
-                                        <list editable="bottom">
-                                            <field name="descripcion"/>
-                                            <field name="codigo"/>
-                                            <field name="monto"/>
-                                        </list>
-                                    </field>
-                                </group>
+                                <field name="tabla_otras_entradas">
+                                    <list editable="bottom">
+                                        <field name="descripcion"/>
+                                        <field name="codigo"/>
+                                        <field name="monto"/>
+                                    </list>
+                                </field>
                             </page>
                         </notebook>
                     </sheet>

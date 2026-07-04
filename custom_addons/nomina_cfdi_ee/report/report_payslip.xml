@@ -73,7 +73,7 @@
 
           <!--INICIA LOGO DE LA EMPRESA-->
                <div class="col-4">
-                   <img t-if="o.company_id.logo" t-att-src="image_data_uri(o.company_id.logo)" style="max-height: 130px;max-width: 130px;padding-left:10px;"/>
+                   <img t-if="o.compania_padre.logo" t-att-src="image_data_uri(o.compania_padre.logo)" style="max-height: 130px;max-width: 130px;padding-left:10px;"/>
                </div>
           <!--TERMINA LOGO DE LA EMPRESA-->
 
@@ -83,10 +83,10 @@
                              <strong>Emisor</strong>
                           </div>
                           <div>
-                             <span t-field="o.company_id.nombre_fiscal" />
+                             <span t-field="o.compania_padre.name" />
                           </div>
                           <div>
-                             <strong>RFC</strong>:<span t-field="o.company_id.vat" />
+                             <strong>RFC</strong>:<span t-field="o.compania_padre.vat" />
                           </div>
                           <div>
                              <strong>Registro Patronal</strong>: <span t-field="o.employee_id.registro_patronal_id.registro_patronal" />
@@ -99,7 +99,7 @@
             <div class="col-4" style="font-size:10px;">
               <div>
                 <strong>Folio:</strong>
-                <strong><span t-if="not o.company_id.serie_nomina=='false'" t-field="o.company_id.serie_nomina" /></strong>
+                <strong><span t-if="not o.compania_padre.serie_nomina=='false'" t-field="o.compania_padre.serie_nomina" /></strong>
                 <span t-field="o.number_folio" />
               </div>
               <div>
@@ -108,7 +108,7 @@
               </div>
               <div>
                 <strong>Lugar de expedición: </strong>
-                <span t-field="o.company_id.partner_id.zip"/>
+                <span t-field="o.compania_padre.partner_id.zip"/>
               </div>
               <!--<div>
                 <strong>Tipo de comprobante: </strong>
@@ -198,6 +198,9 @@
                           <strong>CURP</strong>: <span t-field="o.employee_id.curp" />
                        </div>
                        <div>
+                          <strong>CP</strong>: <span t-field="o.employee_id.domicilio_receptor" />
+                       </div>
+                       <div>
                           <strong>Número de empleado</strong>: <span t-field="o.employee_id.no_empleado" />
                        </div>
                     </div>
@@ -211,17 +214,21 @@
                        <div>
                           <strong>Periodicidad de pago</strong>: <span t-field="o.periodicidad" />
                        </div>
-                       <div>
-                          <strong>Seguro social</strong>: <span t-field="o.employee_id.segurosocial" />
-                       </div>
-                       <div>
-                          <strong>Salario integrado</strong>: <span t-esc="round(o.contract_id.sueldo_diario_integrado,2)" /> diario
-                       </div>
+                       <t t-if="o.employee_id.contrato not in ['09', '10', '99']">
+                          <div>
+                              <strong>Seguro social</strong>: <span t-field="o.employee_id.segurosocial" />
+                          </div>
+                          <div>
+                             <t t-set="sueldo_integrado" t-value="o.read_xml_report_values()"/>
+                             <strong>Salario integrado</strong>: <span t-esc="sueldo_integrado" /> diario
+                          </div>
+                       </t>
                        <div>
                           <strong>Jornada</strong>: <span t-field="o.employee_id.jornada" />
                        </div>
                        <div>
-                          <strong>Fecha de ingreso</strong>: <span t-field="o.contract_id.date_start" />
+                          <strong>Fecha de ingreso</strong>: <span t-esc="o.employee_id._get_first_version_date()" 
+                                                                   t-options='{"widget": "date", "format": "dd-MM-yyyy"}'/>
                        </div>
                        <div>
                           <strong>Días pagados</strong>: <span t-esc="dias_trabajados" />
@@ -229,7 +236,7 @@
                     </div>
           <!--TERMINA DATOS DE NOMINA-->
             </div>
-            <t t-if="o.company_id.modo_prueba == True">
+            <t t-if="o.compania_padre.l10n_mx_edi_pac_test_env == True">
                         <div style="position:absolute;opacity:0.2;z-index:99;width:100%;text-align:center;margin:auto;">
                             <center><span style="font-size:100px;color:red;">NÓMINA DE PRUEBA</span></center>
                         </div>
@@ -257,7 +264,7 @@
                                 <t t-set="total_percepciones" t-value="total_percepciones + line.total"/>
                                 <td height="0"><span t-field="line.name"/></td>
                                 <td height="0" class="text-right"> <span t-esc="line.total"
-                                          t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/></td>
+                                          t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/></td>
                                 <td height="0" class="text-right">
                                     <t t-if= "line.code == 'P001'"><!-- días trabajados -->
                                        <span t-esc="'%.2f'% dias_work"/>
@@ -300,7 +307,7 @@
                             <t t-if= "line.total > 0 "> <!-- and line.salary_rule_id.tipo_deduccion != '002' and line.salary_rule_id.tipo_deduccion != '001'-->
                                 <t t-set="total_deducciones" t-value="total_deducciones + line.total"/>
                                 <td height="0"><span t-field="line.name"/></td>
-                                <td height="0" class="text-right"><span t-esc="line.total" t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/></td>
+                                <td height="0" class="text-right"><span t-esc="line.total" t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/></td>
                             </t>
                           </tr> 
                         </tbody>
@@ -329,7 +336,7 @@
                                 <t t-set="total_otros_pagos" t-value="total_otros_pagos + line.total"/>
                                 <td height="0"><span t-field="line.name"/></td>
                                 <td height="0" class="text-right"> <span t-esc="line.total"
-                                          t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/></td>
+                                          t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/></td>
                                 <td height="0" class="text-right">  
                                 </td>
                            <!-- </t>-->
@@ -343,7 +350,7 @@
         <!--TERMINA TABLA OTROS PAGOS-->
         <t t-if="o.acum_fondo_ahorro > 0">
             <div style="font-size:10px;">
-                 Fondo de ahorro: <span t-esc="o.acum_fondo_ahorro" t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/>
+                 Fondo de ahorro: <span t-esc="o.acum_fondo_ahorro" t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/>
             </div>
         </t>
 
@@ -374,7 +381,7 @@
                     Total de percepciones:
                   </td>
                   <td class="text-right">
-                    <span t-esc="total_percepciones" t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/>
+                    <span t-esc="total_percepciones" t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/>
                   </td>
                 </tr>
                 <tr>
@@ -382,7 +389,7 @@
                     Total de otros pagos:
                   </td>
                   <td class="text-right">
-                    <span t-esc="total_otros_pagos" t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/>
+                    <span t-esc="total_otros_pagos" t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/>
                   </td>
                 </tr>
                 <tr>
@@ -390,7 +397,7 @@
                     Total de deducciones:
                   </td>
                   <td class="text-right">
-                    <span t-esc="total_deducciones" t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}' />
+                    <span t-esc="total_deducciones" t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}' />
                   </td>
                 </tr>
                 <tr class="border-black">
@@ -398,7 +405,7 @@
                     Total:
                   </td>
                   <td class="text-right">
-                    <span t-esc="(total_percepciones + total_otros_pagos- total_deducciones)" t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/>
+                    <span t-esc="(total_percepciones + total_otros_pagos- total_deducciones)" t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/>
                   </td>
                 </tr>
                 <tr class="border-black">
@@ -406,7 +413,7 @@
                     Neto a pagar:
                   </td>
                   <td class="text-right">
-                    <span t-esc="neto_pagar" t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}'/>
+                    <span t-esc="neto_pagar" t-options='{"widget": "monetary", "display_currency": o.compania_padre.currency_id}'/>
                   </td>
                 </tr>
               </table>

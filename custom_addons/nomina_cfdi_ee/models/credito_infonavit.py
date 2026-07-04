@@ -30,9 +30,10 @@ class CreditoInfonavit(models.Model):
     fecha = fields.Date(string="Fecha", required=True)
     valor_descuento = fields.Float(string="Valor descuento", digits = (12,4))
     state = fields.Selection([('draft', 'Borrador'), ('done', 'Hecho'), ('cancel', 'Cancelado')], string='Estado', default='draft')
-    contract_id = fields.Many2one('hr.contract', string='Contrato')
+    #contract_id = fields.Many2one('hr.version', string='Contrato')
     company_id = fields.Many2one('res.company', 'Company', required=True, index=True, default=lambda self: self.env.company)
     valor_infonavit_ant = fields.Float(string="Valor Infonavit anterior", digits = (12,4))
+    desc_infonavit_ant = fields.Char(string="Descripción Infonavit anterior")
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -47,40 +48,36 @@ class CreditoInfonavit(models.Model):
 
     def action_validar(self):
         for rec in self:
-            if rec.contract_id and rec.state == 'draft':
-               if rec.tipo_de_descuento == '1':
-                  rec.valor_infonavit_ant = rec.contract_id.infonavit_porc
-                  rec.contract_id.infonavit_porc = rec.valor_descuento
-                  rec.contract_id.infonavit_fijo = 0
-                  rec.contract_id.infonavit_vsm = 0
-               elif rec.tipo_de_descuento == '2':
-                  rec.valor_infonavit_ant = rec.contract_id.infonavit_fijo
-                  rec.contract_id.infonavit_fijo = rec.valor_descuento
-                  rec.contract_id.infonavit_vsm = 0
-                  rec.contract_id.infonavit_porc = 0
-               else:
-                  rec.valor_infonavit_ant = rec.contract_id.infonavit_vsm
-                  rec.contract_id.infonavit_vsm = rec.valor_descuento
-                  rec.contract_id.infonavit_porc = 0
-                  rec.contract_id.infonavit_fijo = 0
+            descripcion = ''
+            if rec.tipo_de_descuento == '1':
+                descripcion = 'INFONAVIT porcentaje'
+            if rec.tipo_de_descuento == '2':
+                descripcion = 'INFONAVIT cuota fija'
+            if rec.tipo_de_descuento == '3':
+                descripcion = 'INFONAVIT veces SMGV'
+            if rec.employee_id and rec.state == 'draft':
+                found = False
+                for linea in rec.employee_id.tabla_otras_entradas:
+                    if 'INFONAVIT' in linea.descripcion:
+                        rec.valor_infonavit_ant = linea.monto
+                        rec.desc_infonavit_ant = linea.descripcion
+                        linea.monto = rec.valor_descuento
+                        linea.descripcion = descripcion
+                        found = True
+                if not found:
+                    rec.employee_id.write({'tabla_otras_entradas': [(0, 0, {'descripcion': descripcion, 
+                                                                            'codigo': 'D094', 
+                                                                            'monto': rec.valor_descuento})]})
             rec.write({'state':'done'})
         return
 
     def action_cancelar(self):
         for rec in self:
-            if rec.contract_id and rec.state == 'done':
-               if rec.tipo_de_descuento == '1':
-                  rec.contract_id.infonavit_porc = rec.valor_infonavit_ant
-                  rec.contract_id.infonavit_fijo = 0
-                  rec.contract_id.infonavit_vsm = 0
-               elif rec.tipo_de_descuento == '2':
-                  rec.contract_id.infonavit_fijo = rec.valor_infonavit_ant
-                  rec.contract_id.infonavit_vsm = 0
-                  rec.contract_id.infonavit_porc = 0
-               else:
-                  rec.contract_id.infonavit_vsm = rec.valor_infonavit_ant
-                  rec.contract_id.infonavit_porc = 0
-                  rec.contract_id.infonavit_fijo = 0
+            if rec.employee_id and rec.state == 'done':
+                for linea in rec.employee_id.tabla_otras_entradas:
+                    if 'INFONAVIT' in linea.descripcion:
+                        linea.monto = rec.valor_infonavit_ant
+                        #linea.descripcion= rec.desc_infonavit_ant
             rec.write({'state':'cancel'})
 
     def action_draft(self):

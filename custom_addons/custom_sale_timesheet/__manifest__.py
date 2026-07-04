@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Custom Sale Timesheet',
-    'version': '18.0.1.0.0',
+    'version': '19.0.1.0.0',
     'summary': 'Corrige el cálculo de progreso de tareas en el portal de clientes',
     'description': """
         El campo portal_progress de sale_timesheet_enterprise filtra las líneas analíticas

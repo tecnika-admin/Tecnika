@@ -3,7 +3,8 @@
 from odoo import models, fields, api
 from collections import defaultdict
 import io
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
+import xlwt
 import base64
 import logging
 _logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ class WizardISN(models.TransientModel):
         row = 5
         for empleado in employee_ids:
              total = 0
-             if empleado.contract_ids:
+             if empleado.tablas_cfdi_id:
                 rule = self.env['hr.salary.rule'].search([('code', '=', 'TPER')], limit=1)
                 payslips = self.env['hr.payslip'].search([('employee_id', '=', empleado.id), ('state','=', 'done'), ('date_from','>=',self.date_from), ('date_to','<=',self.date_to)])
                 if not payslips:
@@ -68,8 +69,8 @@ class WizardISN(models.TransientModel):
                 for line in payslip_lines:
                    worksheet.write(row, 3, line.slip_id.name)
                    worksheet.write(row, 4, line.slip_id.date_from)
-                   worksheet.write(row, 5, line.total * empleado.contract_id.tablas_cfdi_id.isn/100)
-                   total += line.total * empleado.contract_id.tablas_cfdi_id.isn/100
+                   worksheet.write(row, 5, line.total * empleado.tablas_cfdi_id.isn/100)
+                   total += line.total * empleado.tablas_cfdi_id.isn/100
                    row +=1
              if total > 0 :
                 worksheet.write(row, 4, 'Total')

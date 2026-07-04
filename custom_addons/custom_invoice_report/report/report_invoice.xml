@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ============================================================== -->
+        <!--  Paperformat: Carta (Letter), vertical, márgenes mínimos.      -->
+        <!--  El CFDI trae su propio encabezado/pie: sin header/footer Odoo.-->
+        <!-- ============================================================== -->
+        <record id="paperformat_cfdi_carta" model="report.paperformat">
+            <field name="name">Factura CFDI - Carta</field>
+            <field name="default" eval="False"/>
+            <field name="format">Letter</field>
+            <field name="orientation">Portrait</field>
+            <field name="margin_top">5</field>
+            <field name="margin_bottom">5</field>
+            <field name="margin_left">5</field>
+            <field name="margin_right">5</field>
+            <field name="header_line" eval="False"/>
+            <field name="header_spacing">0</field>
+            <!-- Dpi cercano al estándar para que la factura no se vea
+                 comprimida; el diseño ya está calculado para caber en Carta. -->
+            <field name="dpi">96</field>
+        </record>
+
+        <!-- ============================================================== -->
+        <!--  Reutilizamos las acciones estándar de factura (sin crear una  -->
+        <!--  nueva que compita en el menú Imprimir). Sólo les fijamos el   -->
+        <!--  paperformat Carta. El cuerpo lo reemplaza report_invoice_cfdi.-->
+        <!-- ============================================================== -->
+        <record id="account.account_invoices" model="ir.actions.report">
+            <field name="paperformat_id" ref="paperformat_cfdi_carta"/>
+        </record>
+
+        <record id="account.account_invoices_without_payment" model="ir.actions.report">
+            <field name="paperformat_id" ref="paperformat_cfdi_carta"/>
+        </record>
+
+    </data>
+</odoo>

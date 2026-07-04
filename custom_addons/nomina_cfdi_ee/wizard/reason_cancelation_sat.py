@@ -14,7 +14,7 @@ class ReasonCancelation(models.TransientModel):
         string=('Motivo de cancelación'), 
     )
 
-    foliosustitucion = fields.Char(string=_('Folio Sustitucion'))
+    foliosustitucion = fields.Char(string='Folio Sustitucion')
 
     def Confirmar(self):
         if self.env.context.get('active_id') and self.env.context.get('active_model') == "hr.payslip":

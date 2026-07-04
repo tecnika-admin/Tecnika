@@ -7,7 +7,7 @@ class ResConfigSettings(models.TransientModel):
 
     tipo_de_poliza = fields.Selection([('Por empleado', 'Por empleado'), ('Por nómina', 'Por procesamiento')], string='Tipo de poliza')
     compacta = fields.Boolean(string='Compacta (no separa por cuentas analíticas)')
-    tipo_de_compacta = fields.Selection([('01', 'Por cuentas contables'), ('02', 'Por departamento')], string='Agrupar por')
+    tipo_de_compacta = fields.Selection([('01', 'Cuentas contables'), ('02', 'Departamento'), ('03', 'Puesto')], string='Agrupar por')
 
     @api.model
     def get_values(self):

@@ -45,10 +45,12 @@ class RetardoNomina(models.Model):
     
     def action_validar(self):
         if self.crear_ausencia:
-           if self.company_id.leave_type_fr: 
-              leave_type = self.company_id.leave_type_fr
-           else:
-              raise UserError(_('Falta configurar el tipo de falta en Configuracion - Ajustes'))
+           leave_type = self.env['hr.leave.type'].search([('code', '=', 'FR'), ('company_id', '=', self.company_id.id)], limit=1)
+           if not leave_type:
+               leave_type = self.env['hr.leave.type'].search([('code', '=', 'FR')], limit=1)
+               if not leave_type:
+                   raise UserError(_('Falta configurar el tipo de falta en Configuracion - Ajustes'))
+
 
            date_from = self.fecha.strftime('%Y-%m-%d') +' 15:00:00'
 #           date_to = self.fecha.strftime('%Y-%m-%d') +' 15:00:00' + timedelta(minutes=self.tiempo)
@@ -100,7 +102,7 @@ class RetardoNomina(models.Model):
               vals.update(holiday._convert_to_write({name: holiday[name] for name in holiday._cache}))
               vals.update({'holiday_status_id' : leave_type and leave_type.id,})
               falta = self.env['hr.leave'].create(vals)
-              falta.action_validate()
+              falta._action_validate()
         self.write({'state':'done'})
         return
 
