@@ -8,7 +8,7 @@ from collections import defaultdict
 import io
 import xlwt
 import itertools
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
 import base64
 
 class AltasYBajas(models.TransientModel):
@@ -70,9 +70,9 @@ class AltasYBajas(models.TransientModel):
             employee_no = incidencia.employee_id and incidencia.employee_id.no_empleado or False
             employee_name = incidencia.employee_id and incidencia.employee_id.name or False
             incidencia_fecha = incidencia.fecha.strftime('%d/%m/%Y')
-            contract = incidencia.employee_id and incidencia.employee_id.contract_id or False
-            salario = contract and contract.sueldo_diario or False
-            sdi = contract and contract.sueldo_diario_integrado or False
+            #contract = incidencia.employee_id and incidencia.employee_id.contract_id or False
+            salario = incidencia.employee_id and incidencia.employee_id.sueldo_diario or False
+            sdi = incidencia.employee_id and incidencia.employee_id.sueldo_diario_integrado or False
             puesto = incidencia.employee_id and incidencia.employee_id.job_title or False
             registro_patronal = incidencia.employee_id and incidencia.employee_id.registro_patronal_id.registro_patronal or False
             seguro_social = incidencia.employee_id and incidencia.employee_id.segurosocial or False

@@ -14,9 +14,9 @@
 
     <!-- Contract View -->
     <record id="hr_contract_form_inherit" model="ir.ui.view">
-        <field name="name">hr.contract.view.form.inherit</field>
-        <field name="model">hr.contract</field>
-        <field name="inherit_id" ref="hr_contract.hr_contract_view_form"/>
+        <field name="name">hr.version.view.form.inherit</field>
+        <field name="model">hr.version</field>
+        <field name="inherit_id" ref="hr.hr_contract_template_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='job_id']" position="after">
                 <field name="struct_id" required="1"/>

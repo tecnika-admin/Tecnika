@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from . import res_company
-from . import hr_holidays_status
 from . import res_config_settings
 from . import viaticos_nomina
 from . import payslip

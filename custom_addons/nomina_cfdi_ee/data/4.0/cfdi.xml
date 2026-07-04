@@ -1,0 +1,177 @@
+<?xml version="1.0"?>
+<odoo>
+    <template id="cfdi_nomina">
+<cfdi:Comprobante
+    xsi:schemaLocation="http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd http://www.sat.gob.mx/nomina12 http://www.sat.gob.mx/sitio_internet/cfd/nomina/nomina12.xsd"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+    xmlns:nomina12="http://www.sat.gob.mx/nomina12"
+    Version="4.0"
+    t-att-Fecha="factura['fecha_expedicion']"
+    t-att-Folio="factura['folio']"
+    t-att-Serie="factura['serie']"
+    Sello="TO BE INJECTED"
+    t-att-SubTotal="factura['subtotal']"
+    t-att-Descuento="factura['descuento']"
+    Moneda="MXN"
+    t-att-Total="factura['total']"
+    TipoDeComprobante="N"
+    Exportacion="01"
+    MetodoPago="PUE"
+    t-att-LugarExpedicion="factura['LugarExpedicion']"
+    t-att-NoCertificado="factura['no_certificado']"
+    t-att-Certificado="factura['certificado']">
+    <cfdi:Emisor
+        t-att-Rfc="emisor['rfc']"
+        t-att-Nombre="emisor['nombre']"
+        t-att-RegimenFiscal="factura['RegimenFiscal']"/>
+    <cfdi:Receptor
+        t-att-Rfc="receptor['rfc']"
+        t-att-Nombre="receptor['nombre']"
+        t-att-DomicilioFiscalReceptor="receptor['DomicilioFiscalReceptor']"
+        RegimenFiscalReceptor="605"
+        UsoCFDI="CN01"/>
+    <cfdi:Conceptos>
+        <cfdi:Concepto
+            ClaveProdServ="84111505"
+            Cantidad="1"
+            ClaveUnidad="ACT"
+            Descripcion="Pago de nómina"
+            ObjetoImp="01"
+            t-att-ValorUnitario="factura['subtotal']"
+            t-att-Importe="factura['subtotal']"
+            t-att-Descuento="factura['descuento']">
+        </cfdi:Concepto>
+    </cfdi:Conceptos>
+    <cfdi:Complemento>
+        <nomina12:Nomina
+            Version="1.2"
+            t-att-TipoNomina="nomina12['TipoNomina']"
+            t-att-FechaPago="nomina12['FechaPago']"
+            t-att-FechaInicialPago="nomina12['FechaInicialPago']"
+            t-att-FechaFinalPago="nomina12['FechaFinalPago']"
+            t-att-NumDiasPagados="nomina12['NumDiasPagados']"
+            t-att-TotalPercepciones="nomina12['TotalPercepciones']"
+            t-att-TotalDeducciones="nomina12['TotalDeducciones']"
+            t-att-TotalOtrosPagos="nomina12['TotalOtrosPagos']">
+            <t t-set="emisor" t-value="nomina12['Emisor']"/>
+            <nomina12:Emisor
+                t-att-Curp="emisor['Curp']"
+                t-att-RegistroPatronal="emisor['RegistroPatronal']"
+                t-att-RfcPatronOrigen="emisor['RfcPatronOrigen']"/>
+            <t t-set="receptor" t-value="nomina12['Receptor']"/>
+            <nomina12:Receptor
+                t-att-Curp="receptor['Curp']"
+                t-att-NumSeguridadSocial="receptor['NumSeguridadSocial']"
+                t-att-FechaInicioRelLaboral="receptor['FechaInicioRelLaboral']"
+                t-att-Antigüedad="receptor['Antiguedad']"
+                t-att-TipoContrato="receptor['TipoContrato']"
+                t-att-TipoRegimen="receptor['TipoRegimen']"
+                t-att-TipoJornada="receptor['TipoJornada']"
+                t-att-NumEmpleado="receptor['NumEmpleado']"
+                t-att-RiesgoPuesto="receptor['RiesgoPuesto']"
+                t-att-PeriodicidadPago="receptor['PeriodicidadPago']"
+                t-att-CuentaBancaria="receptor['CuentaBancaria'] or None"
+                t-att-Banco="receptor['Banco'] or None"
+                t-att-Puesto="receptor['Puesto']"
+                t-att-Departamento="receptor['Departamento']"
+                t-att-SalarioBaseCotApor="receptor['SalarioBaseCotApor']"
+                t-att-SalarioDiarioIntegrado="receptor['SalarioDiarioIntegrado']"
+                t-att-ClaveEntFed="receptor['ClaveEntFed']"/>
+
+            <t t-if="Percepciones">
+                <t t-set="totales" t-value="Percepciones['Totales']"/>
+                <nomina12:Percepciones t-if="Percepciones"
+                    t-att-TotalSueldos="totales['TotalSueldos'] or '0'"
+                    t-att-TotalGravado="totales['TotalGravado'] or '0'"
+                    t-att-TotalExento="totales['TotalExento'] or '0'"
+                    t-att-TotalSeparacionIndemnizacion="totales['TotalSeparacionIndemnizacion']"
+                    t-att-TotalJubilacionPensionRetiro="totales['TotalJubilacionPensionRetiro']">
+                    <t t-set="percepcion_list" t-value="Percepciones['conceptos']"/>
+                    <t t-foreach="percepcion_list" t-as="percepcion">
+                        <nomina12:Percepcion
+                            t-att-TipoPercepcion="percepcion['TipoPercepcion']"
+                            t-att-Clave="percepcion['Clave']"
+                            t-att-Concepto="percepcion['Concepto']"
+                            t-att-ImporteGravado="percepcion['ImporteGravado'] or '0'"
+                            t-att-ImporteExento="percepcion['ImporteExento'] or '0'">
+                            <t t-if="'HorasExtra' in percepcion">
+                                <t t-set="horas" t-value="percepcion['HorasExtra']"/>
+                                <nomina12:HorasExtra
+                                    t-att-Dias="horas['Dias']"
+                                    t-att-TipoHoras="horas['TipoHoras']"
+                                    t-att-HorasExtra="horas['HorasExtra']"
+                                    t-att-ImportePagado="horas['ImportePagado']"/>
+                            </t>
+                        </nomina12:Percepcion>
+                    </t>
+                    <t t-if="'JubilacionPensionRetiro' in Percepciones">
+                        <t t-set="jubilacion" t-value="Percepciones['JubilacionPensionRetiro']"/>
+                        <nomina12:JubilacionPensionRetiro
+                                t-att-TotalParcialidad="jubilacion['TotalParcialidad']"
+                                t-att-MontoDiario="jubilacion['MontoDiario']"
+                                t-att-IngresoAcumulable="jubilacion['IngresoAcumulable']"
+                                t-att-IngresoNoAcumulable="jubilacion['IngresoNoAcumulable']"/>
+                    </t>
+                    <t t-if="'SeparacionIndemnizacion' in Percepciones">
+                        <t t-set="separacion" t-value="Percepciones['SeparacionIndemnizacion']"/>
+                        <nomina12:SeparacionIndemnizacion
+                                t-att-TotalPagado="separacion['TotalPagado']"
+                                t-att-NumAñosServicio="separacion['NumAnosServicio'] or '0'"
+                                t-att-UltimoSueldoMensOrd="separacion['UltimoSueldoMensOrd']"
+                                t-att-IngresoAcumulable="separacion['IngresoAcumulable']"
+                                t-att-IngresoNoAcumulable="separacion['IngresoNoAcumulable'] or '0'"/>
+                    </t>
+                </nomina12:Percepciones>
+            </t>
+            <t t-if="Deducciones">
+                <t t-set="totales" t-value="Deducciones['Totales']"/>
+                <nomina12:Deducciones t-if="Deducciones"
+                    t-att-TotalOtrasDeducciones="totales['TotalOtrasDeducciones']"
+                    t-att-TotalImpuestosRetenidos="totales['TotalImpuestosRetenidos']">
+                    <t t-set="deduccion_list" t-value="Deducciones['conceptos']"/>
+                    <t t-foreach="deduccion_list" t-as="deduccion">
+                        <nomina12:Deduccion
+                            t-att-TipoDeduccion="deduccion['TipoDeduccion']"
+                            t-att-Clave="deduccion['Clave']"
+                            t-att-Concepto="deduccion['Concepto']"
+                            t-att-Importe="deduccion['Importe']"/>
+                    </t>
+                </nomina12:Deducciones>
+            </t>
+            <nomina12:OtrosPagos t-if="OtrosPagos">
+                <t t-set="otro_pago_list" t-value="OtrosPagos['conceptos']"/>
+                <t t-foreach="otro_pago_list" t-as="otro_pago">
+                    <nomina12:OtroPago
+                        t-att-TipoOtroPago="otro_pago['TipoOtrosPagos']"
+                        t-att-Clave="otro_pago['Clave']"
+                        t-att-Concepto="otro_pago['Concepto']"
+                        t-att-Importe="otro_pago['Importe'] or '0'">
+                        <t t-if="'SubsidioAlEmpleo' in otro_pago">
+                            <t t-set="subsidio" t-value="otro_pago['SubsidioAlEmpleo']"/>
+                            <nomina12:SubsidioAlEmpleo
+                                t-att-SubsidioCausado="subsidio['SubsidioCausado'] or '0'"/>
+                        </t>
+                        <t t-if="'CompensacionSaldosAFavor' in otro_pago">
+                            <t t-set="compensacion" t-value="otro_pago['CompensacionSaldosAFavor']"/>
+                            <nomina12:CompensacionSaldosAFavor
+                                t-att-SaldoAFavor="compensacion['SaldoAFavor']"
+                                t-att-Año="compensacion['Ano']"
+                                t-att-RemanenteSalFav="compensacion['RemanenteSalFav']"/>
+                        </t>
+                    </nomina12:OtroPago>
+                </t>
+            </nomina12:OtrosPagos>
+            <nomina12:Incapacidades t-if="Incapacidades">
+                <t t-foreach="Incapacidades" t-as="incapacidad">
+                    <nomina12:Incapacidad
+                        t-att-DiasIncapacidad="incapacidad['DiasIncapacidad']"
+                        t-att-TipoIncapacidad="incapacidad['TipoIncapacidad']"
+                        t-att-ImporteMonetario="incapacidad['ImporteMonetario']"/>
+                </t>
+            </nomina12:Incapacidades>
+        </nomina12:Nomina>
+    </cfdi:Complemento>
+</cfdi:Comprobante>
+    </template>
+</odoo>

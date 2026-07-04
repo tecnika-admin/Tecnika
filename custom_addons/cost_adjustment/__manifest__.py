@@ -28,7 +28,7 @@
 
 
     'category': 'Accounting/Accounting', 
-    'version': '18.0.1.2.0', # Versión del módulo (Odoo.Major.Minor.Patch.Revision)
+    'version': '19.0.1.0.0', # Versión del módulo (Odoo.Major.Minor.Patch.Revision)
 
     'depends': [
         'base',

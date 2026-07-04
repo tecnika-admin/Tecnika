@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Reporte Factura Personalizado (CFDI 4.0)',
-    'version': '18.0.2.0.0',
+    'version': '19.0.1.0.0',
     'summary': 'Representación impresa del CFDI 4.0 con diseño fiscal mexicano '
                '(hereda account.report_invoice_with_payments)',
     'author': 'Tecnika',

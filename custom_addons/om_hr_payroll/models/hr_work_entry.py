@@ -3,21 +3,12 @@
 from collections import defaultdict
 from datetime import datetime, date, time
 import pytz
-
-from odoo import fields, models, _
+from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+
 
 class HrWorkEntry(models.Model):
     _inherit = 'hr.work.entry'
-
-    def _get_work_duration(self, date_start, date_stop):
-        """
-        Returns the amount of hours worked from date_start to date_stop related to the work entry.
-
-        This method is meant to be overriden, see hr_work_entry_contract_attendance
-        """
-        dt = date_stop - date_start
-        return dt.days * 24 + dt.seconds / 3600
 
     def _check_undefined_slots(self, interval_start, interval_end):
         """
@@ -25,7 +16,7 @@ class HrWorkEntry(models.Model):
         """
         work_entries_by_contract = defaultdict(lambda: self.env['hr.work.entry'])
         for work_entry in self:
-            work_entries_by_contract[work_entry.contract_id] |= work_entry
+            work_entries_by_contract[work_entry.version_id] |= work_entry
 
         for contract, work_entries in work_entries_by_contract.items():
             if contract.work_entry_source != 'calendar':
@@ -41,3 +32,7 @@ class HrWorkEntry(models.Model):
                     "\n\nMissing work entries are like the Bermuda Triangle for paychecks. Let's keep your colleague's earnings from vanishing into thin air!"
                     , employee_name=employee_name, time_intervals_str=time_intervals_str)
                 raise UserError(msg)
+
+    def _get_work_duration(self, date_start, date_stop):
+        dt = date_stop - date_start
+        return dt.days * 24 + dt.seconds / 3600
