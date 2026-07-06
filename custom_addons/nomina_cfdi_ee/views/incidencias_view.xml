@@ -22,6 +22,7 @@
              <header>
                  <button name="action_validar" string="Validar" type="object" invisible="state != 'draft'" class="btn-primary"/>
                  <button name="action_cancelar" string="Cancelar" type="object" invisible="state == 'cancel'" confirm="¿Seguro que quiere cancelar el registro?"/>
+                 <button name="action_draft" string="Borador" type="object" invisible="state != 'cancel'"/>
                  <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
              </header>
              <sheet>
@@ -33,7 +34,10 @@
                  <group>
                      <group>
                          <field name="tipo_de_incidencia" readonly="state != 'draft'" required="state == 'draft'"/>
-                         <field name="employee_id" readonly="state != 'draft'" required="state == 'draft'"/>
+                         <field name="employee_id" readonly="state != 'draft'" required="state == 'draft'"
+                                invisible="tipo_de_incidencia == 'Reingreso'" domain="[('active', '=', True)]"/>
+                         <field name="employee_id" readonly="state != 'draft'" required="state == 'draft'"
+                                invisible="tipo_de_incidencia != 'Reingreso'" domain="[('active', '=', False)]"/>
                          <field name="registro_patronal" readonly="state != 'draft'" invisible="tipo_de_incidencia not in ('Cambio reg. patronal','Reingreso')"/>
                          <field name="sueldo_mensual" readonly="state != 'draft'" invisible="tipo_de_incidencia not in ('Cambio salario','Reingreso')"/>
                          <field name="sueldo_diario" readonly="state != 'draft'" invisible="tipo_de_incidencia not in ('Cambio salario','Reingreso')"/>
@@ -45,8 +49,8 @@
                          <field name="fecha" readonly="state != 'draft'" required="state == 'draft'"/>
                          <field name="tipo_de_baja" readonly="state != 'draft'" invisible="tipo_de_incidencia not in ('Baja')"
                                                     required="tipo_de_incidencia == 'Baja'" />
-                         <field name="contract_id" readonly="state != 'draft'" invisible="tipo_de_incidencia not in ('Cambio salario','Reingreso','Baja')"
-                                                   required="tipo_de_incidencia in ('Cambio salario','Reingreso', 'Baja')"/>
+                         <!--<field name="contract_id" readonly="state != 'draft'" invisible="tipo_de_incidencia not in ('Cambio salario','Reingreso','Baja')"
+                                                   required="tipo_de_incidencia in ('Cambio salario','Reingreso', 'Baja')"/>-->
                      	<field name="company_id" groups="base.group_multi_company"/>
                      </group>
                      <group string='Datos INFONAVIT' invisible="tipo_de_incidencia not in ('Alta')">

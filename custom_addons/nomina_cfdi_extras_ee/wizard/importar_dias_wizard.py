@@ -41,7 +41,7 @@ class ImportarDiasWizard(models.TransientModel):
     
     import_file = fields.Binary("Importar",required=True)
     file_name = fields.Char("Nombre de file")
-    contract_id = fields.Many2one('hr.contract', string='Contract', help="The contract for which applied this input")
+    contract_id = fields.Many2one('hr.version', string='Contract', help="The contract for which applied this input")
     
     
     def import_xls_file(self):

@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-# noinspection PyStatementEffect
+##############################################################################
+#                 @author IT Admin
+#
+##############################################################################
+
 {
     'name': 'Nomina Electrónica para México CFDI v1.2 EE',
     'summary': 'Agrega funcionalidades para timbrar la nómina electrónica en México para la versión EE.',
@@ -7,10 +11,10 @@
     Nomina CFDI Module
     ''',
     'author': 'IT Admin',
-    'version': '18.01',
+    'version': '19.1.7',
     'category': 'Employees',
     'depends': [
-        'om_hr_payroll','account', 'hr_work_entry_ce',
+        'om_hr_payroll','account', 'hr_work_entry_holidays', 'hr_work_entry_attendance', 'hr_work_entry_enterprise'
     ],
     'data': [
         'security/security.xml',
@@ -21,8 +25,11 @@
         'data/nomina.otropago.csv',
         'data/nomina.percepcion.csv',
         'data/nomina.deduccion.csv',
+        'data/hr_payroll_data.xml',
+        'data/hr_data.xml',
+        'data/4.0/cfdi.xml',
         'views/hr_employee_view.xml',
-        'views/hr_contract_view.xml',
+        'views/hr_version_views.xml',
         'views/hr_salary_view.xml',
         'views/hr_payroll_payslip_view.xml',
         'views/tablas_cfdi_view.xml',

@@ -33,11 +33,12 @@ class HrPayslipEmployeesExt(models.TransientModel):
         employees = self.env['hr.employee'].browse(data['employee_ids'])
 
         ##### Compute Work Entries - New way
-        contracts = employees._get_contracts(payslip_batch.date_start, payslip_batch.date_end, states=['open', 'close']).filtered(lambda c: c.active)
+        collection = employees._get_contracts(payslip_batch.date_start, payslip_batch.date_end)#.filtered(lambda c: c.active)
+        contracts = collection[0]
         contracts.generate_work_entries(payslip_batch.date_start, payslip_batch.date_end)
         work_entries = self.env['hr.work.entry'].search([
-            ('date_start', '<=', payslip_batch.date_end + relativedelta(days=1)),
-            ('date_stop', '>=', payslip_batch.date_start + relativedelta(days=-1)),
+            ('date', '<=', payslip_batch.date_end + relativedelta(days=1)),
+            ('date', '>=', payslip_batch.date_start + relativedelta(days=-1)),
             ('employee_id', 'in', employees.ids),
         ])
         for slip in payslip_batch.slip_ids:
@@ -46,20 +47,18 @@ class HrPayslipEmployeesExt(models.TransientModel):
             date_from = slip_tz.localize(datetime.combine(slip.date_from, time.min)).astimezone(utc).replace(tzinfo=None)
             date_to = slip_tz.localize(datetime.combine(slip.date_to, time.max)).astimezone(utc).replace(tzinfo=None)
             payslip_work_entries = work_entries.filtered_domain([
-                ('contract_id', '=', slip.contract_id.id),
-                ('date_stop', '<=', date_to),
-                ('date_start', '>=', date_from),
+                ('version_id', '=', slip.contract_id.id),
+                ('date', '<=', date_to),
+                ('date', '>=', date_from),
             ])
             payslip_work_entries._check_undefined_slots(slip.date_from, slip.date_to)
 
-
-#        if(self.structure_id.type_id.default_struct_id == self.structure_id):
         work_entries = work_entries.filtered(lambda work_entry: work_entry.state != 'validated')
         if work_entries._check_if_error():
                 work_entries_by_contract = defaultdict(lambda: self.env['hr.work.entry'])
 
                 for work_entry in work_entries.filtered(lambda w: w.state == 'conflict'):
-                    work_entries_by_contract[work_entry.contract_id] |= work_entry
+                    work_entries_by_contract[work_entry.version_id] |= work_entry
 
                 for contract, work_entries in work_entries_by_contract.items():
                     conflicts = work_entries._to_intervals()
@@ -111,7 +110,7 @@ class HrPayslipEmployeesExt(models.TransientModel):
                raise UserError(_("El contrato de %s no está en el rango de fechas de la nomina o no está en proceso.") % (employee.name))
 
             #si está habilitado revisar si tiene todas las nominas del periodo
-            employ_contract_id = self.env['hr.contract'].search([('id', '=', slip_data['value'].get('contract_id'))])
+            employ_contract_id = self.env['hr.version'].search([('id', '=', slip_data['value'].get('contract_id'))])
             no_slips = 0
             ultima_nomina =  False
             if payslip_batch.periodicidad_pago == '02' or payslip_batch.periodicidad_pago == '04':
@@ -159,13 +158,13 @@ class HrPayslipEmployeesExt(models.TransientModel):
                res.update({'imss_dias': payslip_batch.imss_dias,})
 
             #Compute caja ahorro
-            other_inputsb = []
+            #other_inputsb = []
             caja = self.env['caja.nomina'].search([('employee_id','=',employee.id),('fecha_aplicacion','>=',from_date), ('fecha_aplicacion', '<=', to_date),('state','=','done')])
             if caja:
                for other in caja:
                   if other.descripcion and other.clave: 
-                     other_inputsb.append((0,0,{'name':other.descripcion, 'code': other.clave, 'amount':other.importe, 'contract_id':employ_contract_id.id}))
-                     res.update({'input_line_ids': other_inputsb,})
+                     other_inputs.append((0,0,{'name':other.descripcion, 'code': other.clave, 'amount':other.importe, 'contract_id':employ_contract_id.id}))
+                     res.update({'input_line_ids': other_inputs,})
 
             #Compute days for attendance module
             module = self.env['ir.module.module'].sudo().search([('name','=','hr_attendance_sheet')])
@@ -189,5 +188,4 @@ class HrPayslipEmployeesExt(models.TransientModel):
 
             payslips += self.env['hr.payslip'].create(res)
         payslips.compute_sheet()
-
         return {'type': 'ir.actions.act_window_close'}

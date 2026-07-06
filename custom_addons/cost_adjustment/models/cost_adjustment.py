@@ -19,12 +19,10 @@ class ProductTemplate(models.Model):
         store=True,
         help="Indica si el producto tiene una Lista de Materiales activa de tipo 'Kit (Fantasma)'."
     )
-    is_storable = fields.Boolean(
-        string="Es Almacenable (Campo)",
-        compute='_compute_is_storable',
-        store=True,
-        help="Técnico: Verdadero si el tipo de producto es 'Almacenable'."
-    )
+    # NOTA (migración 19): is_storable ya es un campo estándar de stock
+    # ('Track Inventory'); se eliminó la redefinición local que lo pisaba.
+    # El tipo 'product' desapareció de la selección de type (solo consu/service):
+    # "almacenable" ahora es type='consu' + is_storable=True.
 
     @api.depends('bom_ids', 'bom_ids.active', 'bom_ids.type')
     def _compute_is_kit(self):
@@ -37,21 +35,12 @@ class ProductTemplate(models.Model):
             ]) > 0
             template.is_kit = has_active_phantom_bom
 
-    @api.depends('type')
-    def _compute_is_storable(self):
-        """ Campo helper para saber si el producto es de tipo 'product' """
-        for template in self:
-            # Definición estándar: solo 'product' es storable.
-            # Si la definición del usuario es diferente ('consu' + flag), se necesitaría sobreescribir.
-            template.is_storable = template.type == 'product'
-
 
 class ProductProduct(models.Model):
     _inherit = 'product.product'
 
     # Campos relacionados para fácil acceso en la lógica y vistas
     is_kit = fields.Boolean(related='product_tmpl_id.is_kit', store=True, readonly=True)
-    is_storable = fields.Boolean(related='product_tmpl_id.is_storable', store=True, readonly=True) # Campo related añadido
     product_type = fields.Selection(related='type', store=True, readonly=True)
     product_valuation = fields.Selection(related='valuation', store=True, readonly=True)
 
@@ -125,7 +114,7 @@ class CostAdjustment(models.Model):
         for line in self.line_ids:
             product = line.product_id
             # Condición específica para "Almacenable Mal Configurado" según definición del usuario
-            # (type='consu', valuation='real_time', is_storable=False, no es kit)
+            # (bien tipo 'consu' con valoración real_time pero sin seguimiento de inventario, no kit)
             if product.product_type == 'consu' and product.product_valuation == 'real_time' and not product.is_storable and not product.is_kit:
                  products_to_archive |= product
 
@@ -266,8 +255,8 @@ class CostAdjustment(models.Model):
                      _logger.info(f"[Ajuste {self.name}] Kit {product.name}: Valoración original componentes ({actual_component_valuation}) coincide con costo actual kit ({current_kit_total_cost_comp_curr}). No se crearán SVLs de ajuste.")
             else:
                 # --- Lógica para Productos Estándar (Almacenables, no Kit) ---
-                # Solo si es tipo 'product' (Almacenable Correcto Estándar)
-                if product.product_type == 'product':
+                # Almacenable Correcto Estándar: is_storable=True (antes type='product')
+                if product.is_storable:
                     standard_svl_vals = line._prepare_standard_product_svl_vals(adjustment_move, adjustment_amount_comp_curr)
                     if standard_svl_vals:
                         svl_vals_list.append(standard_svl_vals)
@@ -277,7 +266,7 @@ class CostAdjustment(models.Model):
                 elif product.product_type == 'consu' and not product.is_storable:
                      _logger.info(f"[Ajuste {self.name}] Producto {product.name} es 'Mal Configurado'. Omitiendo SVL.")
                 else:
-                     _logger.warning(f"[Ajuste {self.name}] Producto {product.name} (tipo {product.product_type}, val {product.product_valuation}) no es Kit ni tipo 'product' estándar. No se crea SVL.")
+                     _logger.warning(f"[Ajuste {self.name}] Producto {product.name} (tipo {product.product_type}, val {product.product_valuation}) no es Kit ni almacenable estándar. No se crea SVL.")
 
         if svl_vals_list:
             svl_obj.create(svl_vals_list)
@@ -311,11 +300,11 @@ class CostAdjustmentLine(models.Model):
     computed_account_cogs_id = fields.Many2one('account.account', string='Cuenta COGS/Gasto (Calculada)', compute='_compute_accounts', store=False, readonly=True)
     computed_account_contra_id = fields.Many2one('account.account', string='Cuenta Contrapartida (Calculada)', compute='_compute_accounts', store=False, readonly=True)
 
-    @api.depends('product_id.type')
+    @api.depends('product_id.is_storable')
     def _compute_is_storable_product(self):
-        """ Campo helper para saber si el producto es de tipo 'product' """
+        """ Campo helper para saber si el producto lleva seguimiento de inventario. """
         for line in self:
-            line.is_storable_product = line.product_id.type == 'product'
+            line.is_storable_product = line.product_id.is_storable
 
     # --- Onchange ---
     @api.onchange('original_invoice_line_id')
@@ -500,10 +489,11 @@ class CostAdjustmentLine(models.Model):
         elif prod_valuation == 'real_time':
             acc_contra = acc_output
             _logger.debug(f"  -> Caso: Almacenable Correcto -> Contrapartida = Salida ({acc_contra.code if acc_contra else 'N/A'})")
-        # 3. Consumible Correcto: type='consu', valuation='manual'
+        # 3. Consumible Correcto: type='consu', valuation='periodic'
+        #    (en Odoo 19 la valoración manual se llama 'periodic')
         #    Estos no deberían ser seleccionables por el domain de la vista.
         #    Si por alguna razón se selecciona, definimos un comportamiento (ej. error o usar valoración)
-        elif prod_type == 'consu' and prod_valuation == 'manual':
+        elif prod_type == 'consu' and prod_valuation == 'periodic':
              _logger.error(f"  -> Caso: Consumible Correcto (valoración manual) seleccionado para ajuste. Esto no debería ocurrir.")
              # Lanzar error o asignar una cuenta por defecto? Lanzar error es más seguro.
              raise UserError(_("Los productos consumibles con valoración manual no deben ser ajustados mediante esta herramienta."))
@@ -524,7 +514,7 @@ class CostAdjustmentLine(models.Model):
                 acc_contra = categ.property_stock_valuation_account_id
             elif prod_valuation == 'real_time':
                 acc_contra = categ.property_stock_account_output_categ_id
-            elif prod_type == 'consu' and prod_valuation == 'manual':
+            elif prod_type == 'consu' and prod_valuation == 'periodic':
                  # Si llegamos aquí para un consumible, usamos valoración como fallback antes del error
                  acc_contra = categ.property_stock_valuation_account_id
             _logger.debug(f"  -> Contrapartida Fallback: {acc_contra.code if acc_contra else 'N/A'}")

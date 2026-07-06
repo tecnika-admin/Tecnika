@@ -21,4 +21,4 @@ class RegistroPatronal(models.Model):
                    ('04', 'Clase IV'), 
                    ('05', 'Clase V'),
                    ('06', 'No aplica'),],
-        string=_('Clase riesgo'),)
+        string='Clase riesgo',)

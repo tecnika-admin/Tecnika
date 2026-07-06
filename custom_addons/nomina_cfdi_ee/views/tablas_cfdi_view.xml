@@ -5,7 +5,14 @@
         <field name="model">tablas.cfdi</field>
         <field name="arch" type="xml">
         <form string="Tablas CFDI">
-             <field name="name"/>
+             <group cols="4">
+                <group>
+                    <field name="name"/>
+                </group>
+                <group>
+                    <field name="company_id" groups="base.group_multi_company"/>
+                </group>
+             </group>
              <notebook position="inside">
                 <page name="tablas_cfdi" string="Tablas Nomina">
                    <group>

@@ -6,7 +6,8 @@ from odoo import models, fields, api
 #from dateutil import relativedelta
 from collections import defaultdict
 import io
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
+import xlwt
 import base64
 
 class WizardReporteImss(models.TransientModel):

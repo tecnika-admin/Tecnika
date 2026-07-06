@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 import xlwt
 from xlwt import easyxf
 import io
 from docutils.nodes import line
 import base64
+from odoo.exceptions import UserError
+
 class TotalPorDepartamento(models.TransientModel):
     _name = 'total.por.departamento'
     _description = 'Total por departamento'
@@ -43,6 +45,8 @@ class TotalPorDepartamento(models.TransientModel):
                 col_nm += 1    
             result_department={}        
             for line in self.hr_payslip_run_ids.slip_ids:
+                if not line.employee_id.department_id:
+                    raise UserError(_('El empleado %s no tiene departamento asignado.') % (line.employee_id.name))
                 if line.employee_id.department_id.id in result_department.keys():
                     result_department[line.employee_id.department_id.id].append(line)
                 else:

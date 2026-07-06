@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+     <record id="hr_contract_form_inherit" model="ir.ui.view">
+        <field name="name">hr.version.view.form.inherit</field>
+        <field name="model">hr.version</field>
+        <field name="inherit_id" ref="hr.hr_contract_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='contract']" position="after">
+                <group string="CFDI">
+                    <field name="riesgo_puesto" />
+                    <field name="tablas_cfdi_id" />
+                    <field name="sueldo_diario"/>
+                    <field name="sueldo_hora"/>
+                    <field name="sueldo_diario_integrado"/>
+                    <field name="sueldo_base_cotizacion"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
