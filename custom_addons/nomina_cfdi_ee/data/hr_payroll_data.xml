@@ -21,17 +21,17 @@
             <field name="code">FI</field>
         </record> -->
 
-        <record id="work_entry_type_fr" model="hr.work.entry.type">
+        <!-- <record id="work_entry_type_fr" model="hr.work.entry.type">
             <field name="name">Falta por retardo</field>
             <field name="color">4</field>
             <field name="code">FR</field>
-        </record>
+        </record> -->
 
-        <record id="work_entry_type_vac" model="hr.work.entry.type">
+        <!-- <record id="work_entry_type_vac" model="hr.work.entry.type">
             <field name="name">Vacaciones</field>
             <field name="color">4</field>
             <field name="code">VAC</field>
-        </record>
+        </record> -->
 
         <record id="work_entry_type_inc_rt" model="hr.work.entry.type">
             <field name="name">Incapacidad por riesgo trabajo</field>
