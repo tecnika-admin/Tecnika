@@ -26,7 +26,7 @@
         'data/nomina.percepcion.csv',
         'data/nomina.deduccion.csv',
         'data/hr_payroll_data.xml',
-        'data/hr_data.xml',
+        #'data/hr_data.xml',
         'data/4.0/cfdi.xml',
         'views/hr_employee_view.xml',
         'views/hr_version_views.xml',
