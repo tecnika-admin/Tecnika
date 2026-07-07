@@ -1,23 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-Pre-migración 19.1.8: adopta los hr.work.entry.type y hr.leave.type que ya
-existen en la base bajo los XML IDs que declaran data/hr_payroll_data.xml y
-data/hr_data.xml, con noupdate=1.
+Pre-migración 18.x -> 19.1.7 de nomina_cfdi_ee. Corre antes de cargar los
+archivos de datos del módulo, en SQL puro (en fase "pre" el ORM no es
+confiable). Tres pasos, todos idempotentes:
 
-La base trae estos registros de antes (hr_work_entry_ce o captura manual) y
-tienen nóminas/ausencias históricas colgando. Sin este script la actualización
-truena de una de dos formas: si los XML IDs no están ligados, intenta crear
-los registros de nuevo (código duplicado); si quedaron ligados sin noupdate y
-el XML no los trae, _process_end intenta borrarlos (FK contra hr_leave /
-hr_payslip_worked_days).
+1. Adopta los hr.work.entry.type y hr.leave.type existentes bajo los XML IDs
+   que declaran data/hr_payroll_data.xml y data/hr_data.xml, con noupdate=1,
+   fusionando duplicados por código. La base los trae de antes
+   (hr_work_entry_ce o captura manual) con nóminas/ausencias históricas
+   colgando; sin esto la actualización truena por código duplicado (si los
+   XML IDs no están ligados) o por FK contra hr_leave (si _process_end
+   intenta borrar los huérfanos).
 
-Corre antes de cargar los archivos de datos del módulo, así que al llegar la
-carga los XML IDs ya apuntan a los registros vivos y no pasa nada más. Solo
-SQL: en fase "pre" el ORM aún no está listo. Idempotente.
+2. Retira hr_work_entry_ce (eliminado del repo el 2026-07-04, respaldo en
+   tmp/removed_modules/): transfiere sus menús a nomina_tecnika (que ahora
+   los define con los mismos nombres de XML ID), suelta el resto de sus XML
+   IDs (los registros sobreviven como datos de usuario) y lo marca como
+   desinstalado. Sin esto cada carga registra "Some modules have
+   inconsistent states: ['hr_work_entry_ce']".
+
+3. Corrige el signo de amount_currency en apuntes contables donde quedó
+   cruzado respecto al balance (pólizas manuales de pagos USD de 2022):
+   Odoo 19 lo exige con la restricción
+   account_move_line_check_amount_currency_balance_sign. Solo voltea el
+   signo (el valor absoluto en divisa es correcto y los pesos no se tocan).
+   Ya se corrigió en producción; queda como red de seguridad para respaldos
+   que aún traigan las filas malas.
 """
 import logging
 
 _logger = logging.getLogger(__name__)
+
+MODULE = 'nomina_cfdi_ee'
 
 # codigo -> nombre del XML ID en nomina_cfdi_ee (data/hr_payroll_data.xml)
 WET_MAP = {
@@ -47,7 +61,14 @@ LEAVE_MAP = {
     'DFES_3': ('hr_holidays_status_dfest3', 'Dia festivo triple'),
 }
 
-MODULE = 'nomina_cfdi_ee'
+# menus que se movieron de hr_work_entry_ce a nomina_tecnika (mismos nombres)
+MENU_NAMES = [
+    'menu_hr_payroll_work_entries_base',
+    'menu_work_entry',
+    'hr_work_entry_configuration',
+    'menu_hr_work_entry_type_view',
+    'menu_resource_calendar_view',
+]
 
 
 def _fk_columns(cr, table):
@@ -88,14 +109,15 @@ def _set_xmlid(cr, model, xml_name, res_id):
 
 
 def _adopt(cr, model, table, mapping):
+    """Liga los registros existentes a los XML IDs del modulo, fusionando
+    duplicados por codigo (o nombre, para capturas manuales sin codigo)."""
     fk_refs = [(t, c) for t, c in _fk_columns(cr, table) if t != 'ir_model_data']
     has_code = _has_column(cr, table, 'code')
 
     for code, target in mapping.items():
         xml_name, display_name = target if isinstance(target, tuple) else (target, None)
 
-        # candidatos: mismo codigo, o mismo nombre (registros capturados a mano
-        # sin codigo); name es jsonb con traducciones, de ahi el ILIKE
+        # name es jsonb con traducciones, de ahi el ILIKE sobre su texto
         clauses, params = [], []
         if has_code:
             clauses.append('code = %s')
@@ -142,8 +164,57 @@ def _adopt(cr, model, table, mapping):
         _logger.info('%s: %d xmlid(s) huerfano(s) eliminados', model, cr.rowcount)
 
 
+def _retire_hr_work_entry_ce(cr):
+    cr.execute("SELECT state FROM ir_module_module WHERE name = 'hr_work_entry_ce'")
+    row = cr.fetchone()
+    if not row or row[0] == 'uninstalled':
+        return
+
+    # menus -> nomina_tecnika, salvo que nomina_tecnika ya tenga el suyo
+    for name in MENU_NAMES:
+        cr.execute("""
+            UPDATE ir_model_data d SET module = 'nomina_tecnika'
+            WHERE d.module = 'hr_work_entry_ce' AND d.name = %s
+              AND NOT EXISTS (
+                  SELECT 1 FROM ir_model_data t
+                  WHERE t.module = 'nomina_tecnika' AND t.name = %s
+              )
+        """, (name, name))
+        if cr.rowcount:
+            _logger.info('menu %s transferido a nomina_tecnika', name)
+
+    # soltar los XML IDs restantes (los registros quedan como datos de usuario)
+    cr.execute("DELETE FROM ir_model_data WHERE module = 'hr_work_entry_ce'")
+    if cr.rowcount:
+        _logger.info('liberados %d xmlid(s) de hr_work_entry_ce', cr.rowcount)
+
+    cr.execute("""
+        UPDATE ir_module_module SET state = 'uninstalled'
+        WHERE name = 'hr_work_entry_ce'
+    """)
+    _logger.info('hr_work_entry_ce marcado como desinstalado')
+
+
+def _fix_amount_currency_sign(cr):
+    cr.execute("""
+        UPDATE account_move_line
+        SET amount_currency = -amount_currency,
+            amount_residual_currency = -amount_residual_currency
+        WHERE currency_id != company_currency_id
+          AND ((balance < 0 AND amount_currency > 0)
+            OR (balance > 0 AND amount_currency < 0))
+    """)
+    if cr.rowcount:
+        _logger.info(
+            'amount_currency: signo corregido en %d apunte(s) con signo '
+            'cruzado respecto al balance', cr.rowcount,
+        )
+
+
 def migrate(cr, version):
     if not version:
         return  # instalacion nueva: no hay datos previos que adoptar
     _adopt(cr, 'hr.work.entry.type', 'hr_work_entry_type', WET_MAP)
     _adopt(cr, 'hr.leave.type', 'hr_leave_type', LEAVE_MAP)
+    _retire_hr_work_entry_ce(cr)
+    _fix_amount_currency_sign(cr)
