@@ -6,7 +6,6 @@ from datetime import datetime, date, time
 from collections import defaultdict
 from dateutil.relativedelta import relativedelta
 import pytz
-from odoo.osv import expression
 from odoo.tools import format_date
 
 import logging

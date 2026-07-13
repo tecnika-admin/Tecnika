@@ -2,7 +2,7 @@
 from odoo import api, fields, models, _
 from datetime import datetime, timedelta
 from collections import defaultdict
-from odoo.osv import expression
+from odoo.fields import Domain
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -46,16 +46,16 @@ class Contract(models.Model):
     def _get_work_hours_domain(self, date_from, date_to, domain=None, inside=True):
         if domain is None:
             domain = []
-        domain = expression.AND([domain, [
+        domain = Domain.AND([domain, [
             ('state', 'in', ['validated', 'draft']),
             ('version_id', 'in', self.ids),
         ]])
         if inside:
-            domain = expression.AND([domain, [
+            domain = Domain.AND([domain, [
                 ('date', '>=', date_from),
                 ('date', '<=', date_to)]])
         else:
-            domain = expression.AND([domain, [
+            domain = Domain.AND([domain, [
                 '|', '|',
                 '&', '&',
                     ('date', '>=', date_from),
