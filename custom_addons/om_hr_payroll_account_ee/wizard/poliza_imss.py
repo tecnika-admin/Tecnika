@@ -3,7 +3,7 @@
 from odoo import models, fields, api, _
 from collections import defaultdict
 import io
-from odoo.tools.misc import xlwt
+import xlwt
 import base64
 import logging
 

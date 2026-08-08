@@ -6,8 +6,9 @@ from odoo import models, fields, api
 #from dateutil import relativedelta
 from collections import defaultdict
 import io
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
 import base64
+import xlwt
 
 class WizardReglasSalariales(models.TransientModel):
     _name = 'wizard.regalas.salarieles'

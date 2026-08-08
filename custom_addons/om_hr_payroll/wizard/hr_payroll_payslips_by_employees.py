@@ -8,7 +8,8 @@ class HrPayslipEmployees(models.TransientModel):
     _name = 'hr.payslip.employees'
     _description = 'Generate payslips for all selected employees'
 
-    employee_ids = fields.Many2many('hr.employee', 'hr_employee_group_rel', 'payslip_id', 'employee_id', 'Employees')
+    employee_ids = fields.Many2many('hr.employee', 'hr_employee_group_rel', 'payslip_id', 'employee_id', 'Employees',)
+#                                    default=lambda self: self.env['hr.employee'].search([('contract_ids.state', 'in', ('open', 'close')), ('company_id', '=', self.env.company.id)]))
 
     def compute_sheet(self):
         payslips = self.env['hr.payslip']

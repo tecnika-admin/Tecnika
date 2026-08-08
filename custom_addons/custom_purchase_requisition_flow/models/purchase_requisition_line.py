@@ -74,13 +74,8 @@ class PurchaseRequisitionLine(models.Model):
                         ('product_id', '=', line.product_id.id),
                         ('order_id.state', '=', 'purchase')
                     ]
-                    grouped_data = PurchaseOrderLine.read_group(
-                        domain=domain,
-                        fields=['product_qty:sum'],
-                        groupby=['product_id']
-                    )
-                    if grouped_data:
-                        ordered_val = grouped_data[0].get('product_qty', 0.0) or 0.0
+                    po_lines = PurchaseOrderLine.search(domain)
+                    ordered_val = sum(po_lines.mapped('product_qty'))
             line.qty_ordered_calc = ordered_val
 
     @api.depends('requisition_id.purchase_ids.order_line.move_ids.state', 'requisition_id.purchase_ids.order_line.move_ids.quantity', 'qty_cli')
@@ -186,9 +181,8 @@ class PurchaseRequisitionLine(models.Model):
                         ('product_id', '=', line.product_id.id),
                         ('order_id.state', '=', 'purchase')
                     ]
-                    grouped_data_ord = PurchaseOrderLine.read_group(domain_ord, ['product_qty:sum'], ['product_id'])
-                    if grouped_data_ord:
-                        ordered_check = grouped_data_ord[0].get('product_qty', 0.0) or 0.0
+                    po_lines_ord = PurchaseOrderLine.search(domain_ord)
+                    ordered_check = sum(po_lines_ord.mapped('product_qty'))
 
             almmarc = line.qty_almmarc or 0.0
             almmay = line.qty_almmay or 0.0

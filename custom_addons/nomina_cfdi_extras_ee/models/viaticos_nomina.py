@@ -74,16 +74,16 @@ class ViaticosNomina(models.Model):
                'name' : self.description,
                'struct_id' : structure_rec and structure_rec.id,
                'tipo_nomina' : 'E',
-               'contract_id': employee.contract_id.id,
+               'contract_id': employee.version_id.id,
                'dias_pagar': 1,
                }
-           if employee.contract_id:
+           if employee.version_id:
                vals.update({
                    'input_line_ids' : [(0, 0, {
                                     'name': 'Viaticos',
                                     'code': 'VIAT',
                                     'amount' : amount,
-                                    'contract_id': employee.contract_id.id 
+                                    'contract_id': employee.version_id.id 
                                 })],
                 })
            payslip_obj.create(vals)
@@ -104,22 +104,22 @@ class ViaticosNomina(models.Model):
                     'name' : self.description,
                     'struct_id' : structure_rec and structure_rec.id,
                     'tipo_nomina' : 'E',
-                    'contract_id' : employee.contract_id.id,
+                    'contract_id' : employee.version_id.id,
                     'dias_pagar': 1,
                     }
-                if employee.contract_id:
+                if employee.version_id:
                     vals.update({
                         'input_line_ids' : [(0, 0, {
                                             'name': 'Viaticos',
                                             'code': 'PVIAT',
                                             'amount' : amount,
-                                            'contract_id': employee.contract_id.id
+                                            'contract_id': employee.version_id.id
                                             }),
                                             (0, 0, {
                                             'name': 'Ajuste en viáticos entregados al trabajador',
                                             'code': 'DVIAT',
                                             'amount' : amount,
-                                            'contract_id': employee.contract_id.id
+                                            'contract_id': employee.version_id.id
                                             }),
                                             ],
                         })

@@ -31,7 +31,19 @@ class EnviarNomina(models.TransientModel):
                           if payslip.employee_id.work_email:
                              mail = payslip.employee_id.work_email
                       if not mail:continue
+                      attachment_ids=[]
+                      template.sudo().attachment_ids = None
+                      domain = [
+                               ('res_id', '=', payslip.id),
+                               ('res_model', '=', payslip._name),
+                               ('name', '=', payslip.number.replace('/', '_') + '.xml')]
+                      xml_file = self.env['ir.attachment'].search(domain, limit=1)
+                      if xml_file:
+                          new_xml_file = xml_file.copy()
+                          template.attachment_ids = [(4, new_xml_file.id)]
+
                       template.send_mail(payslip.id, force_send=True,email_values={'email_to': mail})
+                      template.sudo().attachment_ids = None
             else:
                if not template:return
                mail = None
@@ -42,7 +54,7 @@ class EnviarNomina(models.TransientModel):
                       mail = payslip.employee_id.work_email
                if not mail:continue
                attachment_ids=[]
-               template.attachment_ids = None
+               template.sudo().attachment_ids = None
                domain = [
                          ('res_id', '=', payslip.id),
                          ('res_model', '=', payslip._name),
@@ -53,5 +65,5 @@ class EnviarNomina(models.TransientModel):
                    template.attachment_ids = [(4, new_xml_file.id)]
 
                template.send_mail(payslip.id, force_send=True,email_values={'email_to': mail})
-               template.attachment_ids = None
+               template.sudo().attachment_ids = None
         return True

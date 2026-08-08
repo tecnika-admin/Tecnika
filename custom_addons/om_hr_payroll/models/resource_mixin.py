@@ -25,13 +25,11 @@ class ResourceMixin(models.AbstractModel):
         """
         resource = self.resource_id
         calendar = calendar or self.resource_calendar_id
-
         # naive datetimes are made explicit in UTC
         if not from_datetime.tzinfo:
             from_datetime = from_datetime.replace(tzinfo=utc)
         if not to_datetime.tzinfo:
             to_datetime = to_datetime.replace(tzinfo=utc)
-
         # total hours per day: retrieve attendances with one extra day margin,
         # in order to compute the total hours on the first and last days
         from_full = from_datetime - timedelta(days=1)
@@ -40,7 +38,6 @@ class ResourceMixin(models.AbstractModel):
         day_total = defaultdict(float)
         for start, stop, meta in intervals[resource.id]:
             day_total[start.date()] += (stop - start).total_seconds() / 3600
-
         # actual hours per day
         if compute_leaves:
             intervals = calendar._work_intervals_batch(from_datetime, to_datetime, resource, domain)

@@ -76,7 +76,7 @@ class TablasPeriodoMensuallLine(models.Model):
                    ('11', 'Noviembre / Periodo 11'),
                    ('12', 'Diciembre / Periodo 12'),
                    ],
-        string=_('Mes / Periodo'),)
+        string='Mes / Periodo',)
     no_dias = fields.Float('Número de dias', store=True)
 
     @api.onchange('dia_inicio', 'dia_fin')
@@ -120,64 +120,64 @@ class TablasCFDI(models.Model):
     #tabla_semanal = fields.One2many('tablas.periodo.semanal', 'form_id', copy=True)
     tabla_cesantia = fields.One2many('tablas.cesantia.line', 'form_id', copy=True)
 
-    uma = fields.Float(string=_('UMA'), default='84.49')
-    salario_minimo = fields.Float(string=_('Salario mínimo'))
+    uma = fields.Float('UMA', default='84.49')
+    salario_minimo = fields.Float('Salario mínimo')
     imss_mes = fields.Float('Periodo mensual subsidio (dias)',default='30.4', digits = (12,4))
     dias_mes = fields.Float('Periodo mensual sueldo (dias)',default='30', digits = (12,4))
 
-    importe_utilidades = fields.Float(string=_('Importe a repartir a todos los empleados'), default=0)
-    dias_min_trabajados = fields.Float(string=_('Dias mínimos trabajados en empleados eventuales'), default=60)
-    funcion_ingresos = fields.Float(string=_('% a repartir en función de los ingresos'), default=50)
-    funcion_dias = fields.Float(string=_('% a repartir en función de los días trabajados'), compute='_compute_funcion_dias', readonly=True)
-    total_dias_trabajados = fields.Float(string=_('Total de días trabajados'), default=0)
-    total_sueldo_percibido = fields.Float(string=_('Total de sueldo percibido'), default=0)
-    factor_dias = fields.Float(string=_('Factor por dias trabajados'), compute='_factor_dias', readonly=True)
-    factor_sueldo = fields.Float(string=_('Factor por sueldo percibido'), compute='_factor_sueldo', readonly=True)
+    importe_utilidades = fields.Float('Importe a repartir a todos los empleados', default=0)
+    dias_min_trabajados = fields.Float('Dias mínimos trabajados en empleados eventuales', default=60)
+    funcion_ingresos = fields.Float('% a repartir en función de los ingresos', default=50)
+    funcion_dias = fields.Float('% a repartir en función de los días trabajados', compute='_compute_funcion_dias', readonly=True)
+    total_dias_trabajados = fields.Float('Total de días trabajados', default=0)
+    total_sueldo_percibido = fields.Float('Total de sueldo percibido', default=0)
+    factor_dias = fields.Float('Factor por dias trabajados', compute='_factor_dias', readonly=True)
+    factor_sueldo = fields.Float('Factor por sueldo percibido', compute='_factor_sueldo', readonly=True)
     fecha_inicio = fields.Date('Fecha inicio')
     fecha_fin = fields.Date('Fecha fin')
 
     ######## Variables del seguro ####################3
-    apotacion_infonavit = fields.Float(string=_('Aportación al Infonavit (%)'), default=5, digits = (12,3))
-    umi = fields.Float(string=_('UMI (Unidad Mixta INFONAVIT)'), default=82.22, digits = (12,3))
-    sbcm_general = fields.Float(string=_('General (UMA)'), default=25, digits = (12,3))
-    sbcm_inv_inf = fields.Float(string=_('Para invalidez e Infonavit (UMA)'), default=25, digits = (12,3))
-    rt_clase1 = fields.Float(string=_('Clase 1'), default=0.55456, digits = (12,6))
-    rt_clase2 = fields.Float(string=_('Clase 2'), default=1.130658, digits = (12,6))
-    rt_clase3 = fields.Float(string=_('Clase 3'), default=2.59844, digits = (12,6))
-    rt_clase4 = fields.Float(string=_('Clase 4'), default=4.65325, digits = (12,6))
-    rt_clase5 = fields.Float(string=_('Clase 5'), default=7.58875, digits = (12,6))
-    enf_mat_cuota_fija = fields.Float(string=_('Cuota fija (%)'), default=20.4, digits = (12,3))
-    enf_mat_excedente_p = fields.Float(string=_('Excedente de 3 UMA P (%)'), default=1.10, digits = (12,3))
-    enf_mat_excedente_e = fields.Float(string=_('Excedente de 3 UMA E (%)'), default=0.40, digits = (12,3))
+    apotacion_infonavit = fields.Float('Aportación al Infonavit (%)', default=5, digits = (12,3))
+    umi = fields.Float('UMI (Unidad Mixta INFONAVIT)', default=82.22, digits = (12,3))
+    sbcm_general = fields.Float('General (UMA)', default=25, digits = (12,3))
+    sbcm_inv_inf = fields.Float('Para invalidez e Infonavit (UMA)', default=25, digits = (12,3))
+    rt_clase1 = fields.Float('Clase 1', default=0.55456, digits = (12,6))
+    rt_clase2 = fields.Float('Clase 2', default=1.130658, digits = (12,6))
+    rt_clase3 = fields.Float('Clase 3', default=2.59844, digits = (12,6))
+    rt_clase4 = fields.Float('Clase 4', default=4.65325, digits = (12,6))
+    rt_clase5 = fields.Float('Clase 5', default=7.58875, digits = (12,6))
+    enf_mat_cuota_fija = fields.Float('Cuota fija (%)', default=20.4, digits = (12,3))
+    enf_mat_excedente_p = fields.Float('Excedente de 3 UMA P (%)', default=1.10, digits = (12,3))
+    enf_mat_excedente_e = fields.Float('Excedente de 3 UMA E (%)', default=0.40, digits = (12,3))
 
-    enf_mat_prestaciones_p = fields.Float(string=_('Prestaciones en dinero P (%)'), default=0.7, digits = (12,3))
-    enf_mat_prestaciones_e = fields.Float(string=_('Prestaciones en dinero E (%)'), default=0.25, digits = (12,3))
-    enf_mat_gastos_med_p = fields.Float(string=_('Gastos médicos personales P (%)'), default=1.05, digits = (12,3))
-    enf_mat_gastos_med_e = fields.Float(string=_('Gastos médicos personales E (%)'), default=0.375, digits = (12,3))
+    enf_mat_prestaciones_p = fields.Float('Prestaciones en dinero P (%)', default=0.7, digits = (12,3))
+    enf_mat_prestaciones_e = fields.Float('Prestaciones en dinero E (%)', default=0.25, digits = (12,3))
+    enf_mat_gastos_med_p = fields.Float('Gastos médicos personales P (%)', default=1.05, digits = (12,3))
+    enf_mat_gastos_med_e = fields.Float('Gastos médicos personales E (%)', default=0.375, digits = (12,3))
 
-    inv_vida_p = fields.Float(string=_('Invalidez y vida P (%)'), default=1.75, digits = (12,3))
-    inv_vida_e = fields.Float(string=_('Invalidez y vida E (%)'), default=0.625, digits = (12,3))
+    inv_vida_p = fields.Float('Invalidez y vida P (%)', default=1.75, digits = (12,3))
+    inv_vida_e = fields.Float('Invalidez y vida E (%)', default=0.625, digits = (12,3))
 
-    cesantia_vejez_p = fields.Float(string=_('Cesantía y vejez P (%)'), default=3.15, digits = (12,3))
-    cesantia_vejez_e = fields.Float(string=_('Cesantía y vejez E (%)'), default=1.125, digits = (12,3))
+    cesantia_vejez_p = fields.Float('Cesantía y vejez P (%)', default=3.15, digits = (12,3))
+    cesantia_vejez_e = fields.Float('Cesantía y vejez E (%)', default=1.125, digits = (12,3))
 
-    retiro_p = fields.Float(string=_('Retiro (%)'), default=2, digits = (12,3))
-    guarderia_p = fields.Float(string=_('Guardería y prestaciones sociales (%)'), default=1, digits = (12,3))
+    retiro_p = fields.Float('Retiro (%)', default=2, digits = (12,3))
+    guarderia_p = fields.Float('Guardería y prestaciones sociales (%)', default=1, digits = (12,3))
 
     caja_ahorro_abono = fields.Many2one('hr.salary.rule', string='Caja / Fondo Ahorro abono')
     caja_ahorro_retiro = fields.Many2one('hr.salary.rule', string='Caja / Fondo Ahorro retiro')
 
-    isn =  fields.Float(string=_('Impuesto sobre nómina'), default='2.0', digits = (12,2))
-    pct_uma = fields.Float(string=_('% Valor mensual UMA'), default='11.82', digits = (12,2))
-    limit_sm = fields.Float(string=_('Límite salario mensual'), default='9081', digits = (12,2))
+    isn =  fields.Float('Impuesto sobre nómina', default='2.0', digits = (12,2))
+    pct_uma = fields.Float('% Valor mensual UMA', default='11.82', digits = (12,2))
+    limit_sm = fields.Float('Límite salario mensual', default='9081', digits = (12,2))
+    company_id = fields.Many2one('res.company', 'Company', required=True, index=True, default=lambda self: self.env.company)
 
     @api.constrains('name')
     def _check_name(self):
         if self.name:
             if self.search([('id', '!=', self.id),('name','=',self.name)]):
                 raise ValidationError(_('Reference with same name already exist.'))
-            
-    @api.returns('self', lambda value: value.id)
+
     def copy(self, default=None):
         default = dict(default or {})
         default.setdefault('name', _("%s (copy)") % (self.name or ''))

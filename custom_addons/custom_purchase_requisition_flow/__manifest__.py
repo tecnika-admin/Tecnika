@@ -18,8 +18,8 @@
     'author': "Jesus Adrian Garza Zavala", 
     'website': "https://www.tecnika.com", 
 
-    'category': 'Purchases', # Categoría apropiada
-    'version': '18.0.1.0.0', # Versión de tu módulo
+    'category': 'Purchases',
+    'version': '19.0.1.0.0',
 
     # any module necessary for this one to work correctly
     'depends': [
