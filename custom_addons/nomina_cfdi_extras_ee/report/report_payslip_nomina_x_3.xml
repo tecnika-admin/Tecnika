@@ -51,7 +51,7 @@
                                 <div style="width:33%;float:left;">
                                 </div>
                                 <div style="width:33%;float:right;text-align:right;">
-                                    R.F.C.
+                                    RFC
                                     <span t-esc="slip.company_id.vat"/>
                                 </div>
                                 <div style="width:33%;float:right;">
@@ -78,6 +78,8 @@
                             <t t-set="prima_dominical" t-value="0.0"/>
                             <t t-set="total_percepciones" t-value="0.0"/>
                             <t t-set="total_deducciones" t-value="0.0"/>
+                            <t t-set="sueldo_neto" t-value="0.0"/>
+                            <t t-set="neto_efectivo" t-value="0.0"/>
 
                             <t t-set="worked_days"
                                t-value="slip.worked_days_line_ids.filtered(lambda x:x.code=='WORK100')"/>
@@ -109,7 +111,7 @@
                                 <t t-set="prima_dominical"
                                    t-value="worked_days[0].number_of_days"/>
                             </t>
-                            <t t-if="slip.contract_id.periodicidad_pago == '02'">
+                            <t t-if="slip.employee_id.periodicidad_pago == '02'">
                                 <t t-set="septimo_dia" t-value="round(dias_trabajados/6,2)"/>
                             </t>
 
@@ -124,12 +126,17 @@
                                         <span t-esc="round(dias_trabajados + septimo_dia,2)"/>
                                     </td>
                                     <td>
-                                        <span>R.F.C.</span>
+                                        <span>RFC</span>
                                         <span t-field="slip.employee_id.rfc"/>
                                     </td>
                                     <td>
-                                        <span>Afil I.M.S.S.</span>
+                                        <span>IMSS</span>
                                         <span t-field="slip.employee_id.segurosocial"/>
+                                    </td>
+                                    <td>
+                                        <span>SDI</span>
+                                        <span t-esc="round(slip.contract_id.sueldo_diario_integrado,2)"
+                                              t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: slip.company_id.currency_id}"/>
                                     </td>
                                 </tr>
                                 <tr>
@@ -142,11 +149,15 @@
                                         <span t-field="slip.dias_pagar"/>
                                     </td>
                                     <td>
+                                        <span>CURP</span>
+                                        <span t-field="slip.employee_id.curp"/>
                                     </td>
                                     <td>
                                         <span t-field="slip.date_from"/>
                                         -
                                         <span t-field="slip.date_to"/>
+                                    </td>
+                                    <td>
                                     </td>
                                 </tr>
                             </table>
@@ -173,8 +184,6 @@
                                     <tr style="font-size:10px;border-bottom: 0px"
                                         t-foreach="slip.line_ids.filtered(lambda line: line.appears_on_payslip and line.category_id.code in ['BASIC','ALW', 'ALW4', 'ALW3'])"
                                         t-as="line">
-                                        <t t-set="total_percepciones"
-                                           t-value="total_percepciones + line.total"/>
                                         <td>
                                             <span t-field="line.code"/>
                                         </td>
@@ -201,20 +210,6 @@
                                                   t-esc-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: slip.company_id.currency_id}"/>
                                         </td>
                                     </tr>
-                                    <tr style="font-size:12px;">
-                                        <td>
-                                            <span>SDI</span>
-                                        </td>
-                                        <td>
-                                            <span
-                                                    t-esc="round(slip.contract_id.sueldo_diario_integrado,2)"
-                                                    t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: slip.company_id.currency_id}"/>
-                                        </td>
-                                        <td class="text-center" colspan="3">
-                                            <span>CURP</span>
-                                            <span t-field="slip.employee_id.curp"/>
-                                        </td>
-                                    </tr>
                                 </table>
                                 <table style="border:1px solid;width:50%;float: right; font-size:12px; height: 190px;">
                                     <tr style="text-align:center;border-bottom:1px solid">
@@ -236,15 +231,9 @@
                                             <span>Importe</span>
                                         </td>
                                     </tr>
-
                                     <tr style="font-size:10px;"
                                         t-foreach="slip.line_ids.filtered(lambda line: line.appears_on_payslip and line.category_id.code in ['DED'])"
                                         t-as="line">
-                                        <!-- <t t-foreach="slip.line_ids.filtered(lambda line: line.appears_on_payslip
-                                            and line.category_id.code in ['DED'])" t-as="line"> -->
-                                        <!-- <t t-if="line.total > 0"> -->
-                                        <t t-set="total_deducciones"
-                                           t-value="total_deducciones + line.total"/>
                                         <td>
                                             <span t-field="line.code"/>
                                         </td>
@@ -259,6 +248,18 @@
                                         <!-- </t> -->
                                     </tr>
                                 </table>
+
+                                <t t-set="aux_lines" t-value="slip.line_ids.filtered(lambda x:x.code=='TPER')"/>
+                                <t t-set="total_percepciones" t-value="total_percepciones + aux_lines[0].total"/>
+                                <t t-set="aux_lines" t-value="slip.line_ids.filtered(lambda x:x.code=='TOP')"/>
+                                <t t-set="total_percepciones" t-value="total_percepciones + aux_lines[0].total"/>
+                                <t t-set="aux_lines" t-value="slip.line_ids.filtered(lambda x:x.code=='TDED')"/>
+                                <t t-set="total_deducciones" t-value="total_deducciones + aux_lines[0].total"/>
+                                <t t-set="aux_lines" t-value="slip.line_ids.filtered(lambda x:x.code=='EFECT')"/>
+                                <t t-set="neto_efectivo" t-value="neto_efectivo + aux_lines[0].total"/>
+                                <t t-set="aux_lines" t-value="slip.line_ids.filtered(lambda x:x.code=='NET')"/>
+                                <t t-set="sueldo_neto" t-value="sueldo_neto + aux_lines[0].total"/>
+
                                 <table style="border:1px solid;width:50%;float: left; font-size:12px;">
                                     <tr style="font-size:12px;">
                                         <td colspan="3" style="text-align:right;">
@@ -292,13 +293,22 @@
                                 </table>
                                 <table style="border:1px solid;width:50%;float: right; font-size:12px;">
                                     <tr style="font-size:12px;">
-                                        <td colspan="3" style="text-align:right;">
+                                        <td style="text-align:right;">
+                                            <span>Efectivo Neto</span>
+                                        </td>
+                                        <td>$</td>
+                                        <td style="text-align:right;">
+                                            <span
+                                                    t-esc="round(neto_efectivo,2)"
+                                                    t-esc-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: slip.company_id.currency_id}"/>
+                                        </td>
+                                        <td colspan="2" style="text-align:right;">
                                             <span>Neto a pagar</span>
                                         </td>
                                         <td>$</td>
                                         <td style="text-align:right;">
                                             <span
-                                                    t-esc="round(total_percepciones - total_deducciones,2)"
+                                                    t-esc="round(sueldo_neto,2)"
                                                     t-esc-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: slip.company_id.currency_id}"/>
                                         </td>
                                     </tr>

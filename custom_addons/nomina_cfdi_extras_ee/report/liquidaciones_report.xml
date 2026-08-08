@@ -30,7 +30,7 @@
 		                		<strong>Emisor</strong>
 		                	</div>
 		                	<div>
-		                		<span t-if="docs" t-field="docs[0].company_id.nombre_fiscal" />
+		                		<span t-if="docs" t-field="docs[0].company_id.name" />
 		                	</div>
 		                	<div>
 		                		<strong>RFC</strong>:<span t-if="docs" t-field="docs[0].company_id.vat" />
@@ -107,13 +107,14 @@
 	            			<strong>Seguro social</strong>: <span t-if="docs" t-field="docs[0].employee_id.segurosocial" />
 	            		</div>
 	            		<div>
-	            			<strong>Salario integrado</strong>: <span t-if="docs" t-esc="round(docs[0].contract_id.sueldo_diario_integrado,2)" /> diario
+	            			<strong>Salario integrado</strong>: <span t-if="docs" t-esc="round(docs[0].employee_id.sueldo_diario_integrado,2)" /> diario
 	            		</div>
 	            		<div>
 	            			<strong>Jornada</strong>: <span t-if="docs" t-field="docs[0].employee_id.jornada" />
 	            		</div>
 	            		<div>
-	            			<strong>Fecha de ingreso</strong>: <span t-if="docs" t-field="docs[0].contract_id.date_start" />
+	            			<strong>Fecha de ingreso</strong>: <span t-if="docs" t-esc="docs[0].employee_id._get_first_version_date()" 
+	            			                                                    t-options='{"widget": "date", "format": "dd-MMM-yyyy"}'/>
 	            		</div>
 	            		<div>
 	            			<strong>Total de días laborados</strong>: <span t-esc="dias_trabajados" />
@@ -333,21 +334,21 @@
                 <br/><br/>
 	            <div style="font-size:12px;">
 
-                   RECIBÍ DE <span t-if="docs" t-field="docs[0].company_id.nombre_fiscal" /> 
+                   RECIBÍ DE <span t-if="docs" t-field="docs[0].company_id.name" /> 
                    LA CANTIDAD DE: <span t-esc="total_neto_pagar" t-options='{"widget": "monetary", "display_currency": docs[0].company_id.currency_id}'/>
                    (<span t-esc="docs[0].monto_a_texto(total_neto_pagar)" />) POR CONCEPTO DE MI FINIQUITO, CON MOTIVO DE LA TERMINACIÓN DE MI RELACIÓN
                    LABORAL CON LA EMPRESA CON FECHA <span t-if="docs" t-esc="docs[0].fecha_pago.strftime('%d DE %B DEL %Y')"/>.<br/><br/>
 
-                   MANIFIESTO QUE DURANTE MI ESTANCIA EN <span t-if="docs" t-field="docs[0].company_id.nombre_fiscal" />
+                   MANIFIESTO QUE DURANTE MI ESTANCIA EN <span t-if="docs" t-field="docs[0].company_id.name" />
                    Y HASTA LA FECHA, FUI PAGADO POR USTEDES DE TODOS MIS SALARIOS 
                    ORDINARIOS Y EXTRAORDINARIOS, SÉPTIMOS DÍAS, DESCANOS OBLIGATORIOS, TIEMPO EXTRAORDINARIO, AGUINALDOS, VACACIONES, PRIMAS VACACIONALES, REPARTO DE UTILIDADES, 
                    PRIMA DE ANTIGÜEDAD, FONDO DE AHORRO, ASÍ COMO DE TODAS LAS PRESTACIOENS A QUE TENGO DERECHO, DE ACUERDO A LO ESTABLECIDO EN EL CONTRATO INDIVIDUAL DE TRABAJO 
                    Y A LA LEY FEDERAL DE TRABAJO EN VIGOR. <br/><br/>
 
                    ASÍ MISMO, HAGO CONSTAR QUE DURANTE TODO EL TIEMPO QUE LABORÉ CON USTEDES, NO SUFRÍ ACCIDENTE O ENFERMEDAD PROFESIONAL ALGUNA. POR LO QUE OTROGO UN FINIQUITO 
-                   TOTAL DE OBLIGACIONES A <span t-if="docs" t-field="docs[0].company_id.nombre_fiscal" /> Y NO ME RESERVO ACCIÓN O DERECHO ALGUNO QUE EJERCER EN SU CONTRA,
+                   TOTAL DE OBLIGACIONES A <span t-if="docs" t-field="docs[0].company_id.name" /> Y NO ME RESERVO ACCIÓN O DERECHO ALGUNO QUE EJERCER EN SU CONTRA,
                    CONSECUENTEMENTE DOY POR TERMINADA LA RELACIÓN LABORAL QUE ME 
-                   UNIÓ A <span t-if="docs" t-field="docs[0].company_id.nombre_fiscal" />, EN LOS TÉRMINOS QUE MARCA EL ART. 53 FRACC I DE LA LEY FEDERAL DEL TRABAJO. <br/> <br/>
+                   UNIÓ A <span t-if="docs" t-field="docs[0].company_id.name" />, EN LOS TÉRMINOS QUE MARCA EL ART. 53 FRACC I DE LA LEY FEDERAL DEL TRABAJO. <br/> <br/>
                 </div>
 
 	        	<table  width="100%"  style="font-size:12px;">

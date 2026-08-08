@@ -8,20 +8,21 @@ class StockPicking(models.Model):
 
     def button_validate(self):
         """Override to validate stock availability before validating moves."""
-        if self.picking_type_code == 'incoming' or self.picking_type_code == 'dropship':
-            return super().button_validate()
-            
-        # Group and validate moves to prevent stock negatives from duplicates
-        self._validate_outgoing_stock_availability()
-        
+        outgoing = self.filtered(
+            lambda picking: picking.picking_type_code not in ('incoming', 'dropship')
+        )
+        if outgoing:
+            # Group and validate moves to prevent stock negatives from duplicates
+            outgoing._validate_outgoing_stock_availability()
+
         return super().button_validate()
-        
+
     def _validate_outgoing_stock_availability(self):
         """Validate stock availability for outgoing transfers."""
         move_groups = {}
-        
+
         # Group moves by product, location and lot
-        for move in self.move_ids_without_package:
+        for move in self.move_ids:
             if move.product_id.allow_negative_stock_mrp or not move.product_id.is_storable:
                 continue
                 

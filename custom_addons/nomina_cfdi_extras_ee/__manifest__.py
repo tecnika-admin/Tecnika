@@ -7,7 +7,7 @@
 This new module will create 2 new models: incidencias and incapacidades, they will have a tree view and will be located on Employees view. For both create sequential numbers for each register. Will have only 2 states: draft and done.
     ''',
     'author': 'IT Admin',
-    'version': '18.01',
+    'version': '19.1.2',
     'category': 'Employees',
     'depends': [
         'web',
@@ -15,7 +15,6 @@ This new module will create 2 new models: incidencias and incapacidades, they wi
         'report_xlsx', 'om_hr_payroll',
     ],
     'data': [
-        'data/hr_data.xml',
         'data/ir_sequence_data.xml',
        # 'data/action_report_xls.xml',
         'security/ir.model.access.csv',
@@ -27,11 +26,7 @@ This new module will create 2 new models: incidencias and incapacidades, they wi
         'views/hr_loan_view.xml',
         'views/ir_sequence_data.xml',
         'views/employee_loan_type_views.xml',
-       # 'edi/mail_template.xml',
-       # 'edi/skip_installment_mail_template.xml',
         'views/pay_slip_view.xml',
-        #'views/salary_structure.xml',
-        #'wizard/import_loan_views.xml',
         'wizard/import_logs_view.xml',
         'views/dev_skip_installment.xml',
         'report/report_paperformat.xml',
@@ -47,7 +42,7 @@ This new module will create 2 new models: incidencias and incapacidades, they wi
         'wizard/year_reparto_utilidades.xml',
         'report/calculo_isr_anual_report.xml',
         'wizard/importar_dias_wizard.xml',
-        'report/reporte_isr_imss.xml',
+        #'report/reporte_isr_imss.xml', #dejar obsoleto
         'report/reporte_de_control.xml',
         'report/report_payslip_nomina_x_3.xml',
         'wizard/altas_y_bajas_view.xml',

@@ -4,8 +4,6 @@ import pytz
 from odoo.exceptions import UserError
 from datetime import datetime, date
 from odoo import tools
-import logging
-_logger = logging.getLogger(__name__)
 
 class CajaAhorro(models.Model):
     _name = 'caja.nomina'
@@ -52,16 +50,16 @@ class CajaAhorro(models.Model):
     @api.onchange('employee_id')
     def _compute_saldo(self):
         for record in self:
-          if record.employee_id and len(record.employee_id.contract_ids) > 0:
-            contract = record.employee_id.contract_ids[0]
-            if contract and record.state == 'draft':
-               if contract.tablas_cfdi_id:
+          if record.employee_id and len(record.employee_id.version_ids) > 0:
+            #contract = record.employee_id.contract_ids[0]
+            if record.state == 'draft':
+               if record.employee_id.tablas_cfdi_id:
                    abono = 0
                    retiro = 0
                    domain=[('state','=', 'done')]
                    domain.append(('employee_id','=',record.employee_id.id))
-                   if contract.tablas_cfdi_id.caja_ahorro_abono:
-                        rules = record.env['hr.salary.rule'].search([('code', '=', contract.tablas_cfdi_id.caja_ahorro_abono.code)])
+                   if record.employee_id.tablas_cfdi_id.caja_ahorro_abono:
+                        rules = record.env['hr.salary.rule'].search([('code', '=', record.employee_id.tablas_cfdi_id.caja_ahorro_abono.code)])
                         payslips = record.env['hr.payslip'].search(domain)
                         payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
                         employees = {}
@@ -75,8 +73,8 @@ class CajaAhorro(models.Model):
                             for payslip2,lines in payslips.items():
                                for line in lines:
                                   abono += line.total
-                   if contract.tablas_cfdi_id.caja_ahorro_retiro:
-                        rules = record.env['hr.salary.rule'].search([('code', '=', contract.tablas_cfdi_id.caja_ahorro_retiro.code)])
+                   if record.employee_id.tablas_cfdi_id.caja_ahorro_retiro:
+                        rules = record.env['hr.salary.rule'].search([('code', '=', record.employee_id.tablas_cfdi_id.caja_ahorro_retiro.code)])
                         payslips = record.env['hr.payslip'].search(domain)
                         payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id in rules.ids)
                         employees = {}

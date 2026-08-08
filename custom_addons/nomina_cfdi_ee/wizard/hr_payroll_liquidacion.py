@@ -27,7 +27,7 @@ class GeneraLiquidaciones(models.TransientModel):
     dias_prima_vac = fields.Float('Días prima vacacional')
     fondo_ahorro = fields.Float('Fondo ahorro', compute="get_fondo_ahorro", store=True)
     pago_separacion = fields.Float("Pago por separación")
-    contract_id = fields.Many2one('hr.contract', string='Contrato')
+    contract_id = fields.Many2one('hr.version', string='Contrato')
     antiguedad_anos = fields.Float('Antiguedad', store=True)
 
     monto_prima_antiguedad = fields.Float('Prima antiguedad', store=True)
@@ -75,7 +75,7 @@ class GeneraLiquidaciones(models.TransientModel):
                'name' : payslip_batch_nm,
                'date_start': date_from,
                'date_end': date_to,
-               'periodicidad_pago': self.contract_id.periodicidad_pago,
+               'periodicidad_pago': self.employee_id.periodicidad_pago,
                'tipo_nomina': 'E',
                'fecha_pago' : date_to,
            })
@@ -110,21 +110,32 @@ class GeneraLiquidaciones(models.TransientModel):
              #_logger.info('lineas %s', lines)
              if lines['code'] != 'WORK100' and lines['code'] != 'SEPT':
                  worked_days.append((0,0,lines))
-             if lines['code'] != 'WORK100' and lines['code'] != 'DFES' and lines['code'] != 'DFES_3' and lines['code'] != 'SEPT':
-                 self.dias_pendientes_pagar -= lines['number_of_days']
-                 if self.dias_pendientes_pagar < 0:
-                    self.dias_pendientes_pagar = 0
 
         worked_days.append((0,0,{'name' :'Dias aguinaldo', 'code' : 'AGUI', 'contract_id':contract_id, 'number_of_days': self.dias_aguinaldo}))
         worked_days.append((0,0,{'name' :'Dias vacaciones', 'code' : 'VAC', 'contract_id':contract_id, 'number_of_days': self.dias_vacaciones}))
         worked_days.append((0,0,{'name' :'Prima vacacional', 'code' : 'PVC', 'contract_id':contract_id, 'number_of_days': self.dias_prima_vac}))
-        if self.contract_id.periodicidad_pago == '02' and self.contract_id.sept_dia:
-            if self.contract_id.semana_inglesa:
-                self.dias_pendientes_pagar -= 2
-                aux = (self.dias_pendientes_pagar)/ 5
+        if self.employee_id.periodicidad_pago == '02' and self.employee_id.sept_dia:
+            if self.employee_id.tipo_semana == '02':
+                if self.dias_pendientes_pagar - 2 > 0:
+                    self.dias_pendientes_pagar -= 2
+                    aux = (self.dias_pendientes_pagar)/ 5
+                else:
+                    aux = (self.dias_pendientes_pagar)/ 5
+                    self.dias_pendientes_pagar -= aux
+            elif self.employee_id.tipo_semana == '03':
+                if self.dias_pendientes_pagar - 2 > 0:
+                    self.dias_pendientes_pagar -= 3
+                    aux = (self.dias_pendientes_pagar)/ 4
+                else:
+                    aux = (self.dias_pendientes_pagar)/ 4
+                    self.dias_pendientes_pagar -= aux
             else:
-                self.dias_pendientes_pagar -= 1
-                aux = (self.dias_pendientes_pagar)/ 6
+                if self.dias_pendientes_pagar - 2 > 0:
+                    self.dias_pendientes_pagar -= 1
+                    aux = (self.dias_pendientes_pagar)/ 6
+                else:
+                    aux = (self.dias_pendientes_pagar)/ 6
+                    self.dias_pendientes_pagar -= aux
             worked_days.append((0,0,{'name' :'Dias a pagar', 'code' : 'WORK100', 'contract_id':contract_id, 'number_of_days': self.dias_pendientes_pagar}))
             worked_days.append((0,0,{'name' :'Septimo día', 'code' : 'SEPT', 'contract_id':contract_id, 'number_of_days': aux}))
         else:
@@ -195,15 +206,17 @@ class GeneraLiquidaciones(models.TransientModel):
     def calculo_liquidacion(self):
         if self.employee_id and self.contract_id and self.contract_id.tablas_cfdi_id:
             #cálculo de conceptos de nómina extraordinaria
-            date_start = self.contract_id.date_start
+            date_start = self.employee_id._get_first_version_date()
             last_day = self.fecha_liquidacion
+            if last_day <  date_start:
+                   raise UserError("La fecha de inicio de liquidación debe ser mayor a la fecha de ingreso en el contrato.")
             diff_date = last_day - date_start 
             self.antiguedad_anos = diff_date.days /365.0
           
             if self.sueldo_calculo == '01':
-                self.sueldo_calculo_monto = self.contract_id.sueldo_diario
+                self.sueldo_calculo_monto = self.employee_id.sueldo_diario
             else:
-                self.sueldo_calculo_monto = self.contract_id.calculate_sueldo_diario_integrado()
+                self.sueldo_calculo_monto = self.employee_id.calculate_sueldo_diario_integrado()
 
             #calculo de dias a indemnizar
             if self.indemnizacion:
@@ -243,12 +256,12 @@ class GeneraLiquidaciones(models.TransientModel):
 
             #Dias de aguinaldo
             payslip_obj = self.env['hr.payslip']
-            year_date_start = self.contract_id.date_start.year
+            year_date_start = self.employee_id._get_first_version_date().year
             if year_date_start < self.fecha_liquidacion.year:
                 inicio_ano = date(self.fecha_liquidacion.year, 1, 1)
                 payslip_onchange_vals = payslip_obj.onchange_employee_id(inicio_ano, self.fecha_liquidacion, employee_id=self.employee_id.id)
             else:
-                payslip_onchange_vals = payslip_obj.onchange_employee_id(self.contract_id.date_start, self.fecha_liquidacion, employee_id=self.employee_id.id)
+                payslip_onchange_vals = payslip_obj.onchange_employee_id(self.employee_id._get_first_version_date(), self.fecha_liquidacion, employee_id=self.employee_id.id)
             #Creación de nomina ordinaria
             payslip_vals = {**payslip_onchange_vals.get('value',{})} #TO copy dict to new dict. 
             contract_id = self.contract_id.id
@@ -261,6 +274,14 @@ class GeneraLiquidaciones(models.TransientModel):
             if not contract_id:
                 raise UserError("No se encontró contrato para %s en el periodo de tiempo."%(self.employee_id.name))
 
+            #dias pendientes a pagar en ultima nomina
+            compute_days = payslip_vals.get('worked_days_line_ids')
+            for lines in compute_days:
+                 if lines['code'] != 'WORK100' and lines['code'] != 'DFES' and lines['code'] != 'DFES_3' and lines['code'] != 'SEPT':
+                     self.dias_pendientes_pagar -= lines['number_of_days']
+                     if self.dias_pendientes_pagar < 0:
+                        self.dias_pendientes_pagar = 0
+
             worked_days = [(0, 0, x) for x in payslip_vals.get('worked_days_line_ids')]
             self.dias_aguinaldo = 0
             dias_faltas = 0
@@ -270,13 +291,13 @@ class GeneraLiquidaciones(models.TransientModel):
                if lines[2]['code'] == 'FI' or lines[2]['code'] == 'FJS' or lines[2]['code'] == 'FR':
                    dias_faltas += lines[2]['number_of_days']
 
-            year_date_start = self.contract_id.date_start.year
+            year_date_start = self.employee_id.date_start.year
             first_day_date = date(self.fecha_liquidacion.year, 1, 1)
             if year_date_start < self.fecha_liquidacion.year:
                 delta1 = self.fecha_liquidacion - first_day_date
                 self.dias_aguinaldo = delta1.days + 1
             else:
-                delta2 = self.fecha_liquidacion - self.contract_id.date_start
+                delta2 = self.fecha_liquidacion - self.employee_id._get_first_version_date()
                 self.dias_aguinaldo = delta2.days + 1
 
             if self.contract_id.tablas_cfdi_id:
@@ -320,9 +341,22 @@ class GeneraLiquidaciones(models.TransientModel):
 
             #Suma dias de vacaciones de tabla, prima vacacional dependiendo de como se paga
             dias_pri_vac = self.dias_vacaciones
-            for lineas_vac in self.contract_id.tabla_vacaciones:
-                self.dias_vacaciones += lineas_vac.dias
-            if self.contract_id.tipo_prima_vacacional == '02':
+
+            leave_type = self.env['hr.leave.type'].search([('code', '=', 'VAC'), ('company_id', '=', self.employee_id.company_id.id)], limit=1)
+            if not leave_type:
+                leave_type = self.env['hr.leave.type'].search([('code', '=', 'VAC')], limit=1)
+            if leave_type:
+                asignacion_obj = self.env['hr.leave.allocation'].search([('employee_id', '=', self.employee_id.id), 
+                                                                     ('state', '=', 'validate'),
+                                                                     ('holiday_status_id', '=', leave_type.id),
+                                                                     ('employee_company_id', '=', self.employee_id.company_id.id),
+                                                                     ])
+                for asignacion in asignacion_obj:
+                    self.dias_vacaciones += asignacion.virtual_remaining_leaves
+                #for lineas_vac in self.contract_id.tabla_vacaciones: ###sumar días de vacaciones pendientes de tomar tomado de tiempo personal
+                #    self.dias_vacaciones += lineas_vac.dias
+
+            if self.employee_id.tipo_prima_vacacional == '02':
                 dias_pri_vac = self.dias_vacaciones
 
             #fondo de ahorro (si hay)
@@ -343,7 +377,8 @@ class GeneraLiquidaciones(models.TransientModel):
     def get_fondo_ahorro(self):
         for record in self:
           if record.employee_id:
-            contract = record.employee_id.contract_ids[0]
+            contract_ids = self.get_contract(record.employee_id, record.fecha_inicio, record.fecha_liquidacion)
+            contract = self.env['hr.version'].browse(contract_ids[0])
             if contract:
                if contract.tablas_cfdi_id:
                    abono = 0
@@ -385,3 +420,20 @@ class GeneraLiquidaciones(models.TransientModel):
                return 0
           else:
             return 0
+
+    @api.model
+    def get_contract(self, employee, date_from, date_to):
+        """
+        @param employee: recordset of employee
+        @param date_from: date field
+        @param date_to: date field
+        @return: returns the ids of all the contracts for the given employee that need to be considered for the given dates
+        """
+        # a contract is valid if it ends between the given dates
+        clause_1 = ['&', ('date_end', '<=', date_to), ('date_end', '>=', date_from)]
+        # OR if it starts between the given dates
+        clause_2 = ['&', ('date_start', '<=', date_to), ('date_start', '>=', date_from)]
+        # OR if it starts before the date_from and finish after the date_end (or never finish)
+        clause_3 = ['&', ('date_start', '<=', date_from), '|', ('date_end', '=', False), ('date_end', '>=', date_to)]
+        clause_final = [('employee_id', '=', employee.id), '|', '|'] + clause_1 + clause_2 + clause_3 #('state', '=', 'open'), '|',
+        return self.env['hr.version'].search(clause_final).ids

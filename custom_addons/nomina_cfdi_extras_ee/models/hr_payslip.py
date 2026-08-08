@@ -48,7 +48,7 @@ class hr_payslip(models.Model):
     rp_cuota_fija = fields.Float('rp_cuota_fija', compute='get_tablas_values')
     rp_porcentaje = fields.Float('rp_porcentaje', compute='get_tablas_values')
     rp_subsidio = fields.Float('rp_subsidio', compute='get_tablas_values')
-    retardo = fields.Boolean(string=_('Retardo'), compute='_get_retardo', default = False)
+    retardo = fields.Boolean('Retardo', compute='_get_retardo', default = False)
 
     
     def compute_sheet(self):
@@ -61,22 +61,23 @@ class hr_payslip(models.Model):
               else:
                  installment_ids = data.env['installment.line'].search(
                       [('employee_id', '=', data.employee_id.id), ('loan_id.state', '=', 'done'),
+                       ('is_paid', '=', False),('date','<=',data.date_to), ('date','>=',data.date_from)])
+                 if not installment_ids:
+                    all_loan_ids = data.env['installment.line'].search(
+                      [('employee_id', '=', data.employee_id.id), ('loan_id.state', '=', 'done'),
                        ('is_paid', '=', False),('date','<=',data.date_to)])
+                    if all_loan_ids:
+                        loan_id = []
+                        installment_ids = self.env['installment.line']
+                        for loan in all_loan_ids:
+                            if loan.loan_id.id not in loan_id:
+                                loan_id.append(loan.loan_id.id)
+                                installment_ids += loan
               if installment_ids:
                   data.installment_ids = [(6, 0, installment_ids.ids)]
           else:
               data.installment_ids = [(6, 0, [])]
         return super(hr_payslip,self).compute_sheet()
-    
-#    
-#    def compute_sheet(self):
-#        installment_ids = self.env['installment.line'].search(
-#                [('employee_id', '=', self.employee_id.id), ('loan_id.state', '=', 'done'),
-#                 ('is_paid', '=', False),('date','<=',self.date_to)])
-#        if installment_ids:
-#            self.installment_ids = [(6, 0, installment_ids.ids)]
-#        return super(hr_payslip,self).compute_sheet()
-        
 
     @api.depends('installment_ids')
     def get_installment_amount(self):
@@ -320,7 +321,7 @@ class hr_payslip(models.Model):
             work_lines = payslip.env['hr.payslip.worked_days'].search([('payslip_id','=',payslip.id)])
             for line in work_lines:
                 if line.code == 'FI' or line.code == 'FJS' or line.code == 'FR' or line.code == 'INC_RT' or line.code == 'INC_EG' or line.code == 'INC_MAT':
-                    dias -= 1
+                    dias -= line.number_of_days
             payslip.rp_dias_laborados =  dias
 
     def get_dias_completos(self):
@@ -329,13 +330,13 @@ class hr_payslip(models.Model):
             work_lines = payslip.env['hr.payslip.worked_days'].search([('payslip_id','=',payslip.id)])
             for line in work_lines:
                 if line.code == 'INC_RT' or line.code == 'INC_EG' or line.code == 'INC_MAT':
-                    dias -= 1
+                    dias -= line.number_of_days
             payslip.rp_dias_completos =  dias
 
     def get_dias_periodo(self):
         for payslip in self:
             dias = 0
-            lines = payslip.contract_id.env['tablas.periodo.bimestral'].search([('form_id','=',payslip.contract_id.tablas_cfdi_id.id),('dia_fin','>=',payslip.date_to),('dia_inicio','<=',payslip.date_to)],limit=1)
+            lines = payslip.env['tablas.periodo.bimestral'].search([('form_id','=',payslip.tablas_cfdi_id.id),('dia_fin','>=',payslip.date_to),('dia_inicio','<=',payslip.date_to)],limit=1)
             if lines:
                 dias = lines.no_dias/4
             payslip.rp_dias_periodo =  dias
@@ -352,20 +353,25 @@ class hr_payslip(models.Model):
     def get_tablas_values(self):
         grabado_mensual = 0
         for payslip in self:
-            if payslip.ultima_nomina:
+            if payslip.ultima_nomina and payslip.isr_ajustar:
                 grabado_mensual = payslip.rp_gravado + payslip.acum_per_grav
+                grabado_sub = payslip.rp_gravado + payslip.acum_per_grav
+                lines = payslip.env['tablas.general.line'].search([('form_id','=',payslip.tablas_cfdi_id.id),('lim_inf','<=',grabado_mensual)],order='lim_inf desc',limit=1)
             else:
-                grabado_mensual = payslip.rp_gravado  / payslip.dias_pagar * payslip.contract_id.tablas_cfdi_id.imss_mes
+                grabado_mensual = payslip.rp_gravado
+                grabado_sub = payslip.rp_gravado  / payslip.dias_pagar * payslip.tablas_cfdi_id.imss_mes
+                lines = payslip.env['tablas.isr.periodo'].search([('form_id','=',payslip.tablas_cfdi_id.id),('lim_inf','<=',grabado_mensual)],order='lim_inf desc',limit=1)
 
-            lines = payslip.contract_id.env['tablas.general.line'].search([('form_id','=',payslip.contract_id.tablas_cfdi_id.id),('lim_inf','<=',grabado_mensual)],order='lim_inf desc',limit=1)
             if lines:
                 payslip.rp_limite_inferior =  lines.lim_inf
                 payslip.rp_cuota_fija =  lines.c_fija
                 payslip.rp_porcentaje =  lines.s_excedente
-            lines2 = payslip.contract_id.env['tablas.subsidio.line'].search([('form_id','=',payslip.contract_id.tablas_cfdi_id.id),('lim_inf','<=',grabado_mensual)],order='lim_inf desc',limit=1)
-            if lines2:
-               payslip.rp_subsidio =  lines2.s_mensual
 
+            #subsidio 2024
+            if grabado_sub > payslip.tablas_cfdi_id.limit_sm:
+                payslip.rp_subsidio = 0
+            else:
+                payslip.rp_subsidio = (payslip.tablas_cfdi_id.uma * payslip.tablas_cfdi_id.imss_mes * payslip.tablas_cfdi_id.pct_uma/100)
 
     @api.onchange('date_to')
     def _get_retardo(self):

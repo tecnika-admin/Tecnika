@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields
 
+################# No se usa, dejar por cuestiones de migración y recuperación de información ##############
+
 class ContractHistorialSalario(models.Model):
     _name = 'contract.historial.salario'
     _description = 'ContractHistorialSalario'
@@ -11,5 +13,5 @@ class ContractHistorialSalario(models.Model):
     sueldo_por_hora = fields.Float('Sueldo por hora')
     sueldo_diario_integrado = fields.Float('Sueldo diario integrado')
     sueldo_base_cotizacion = fields.Float('Sueldo base cotización')
-    contract_id = fields.Many2one('hr.contract', 'Contract')
+    contract_id = fields.Many2one('hr.version', 'Contract')
     

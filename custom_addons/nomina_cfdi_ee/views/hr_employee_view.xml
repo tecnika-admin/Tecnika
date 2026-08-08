@@ -5,7 +5,18 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-           <xpath expr="//notebook" position="inside">
+            <xpath expr="//group[@name='contract']" position="after">
+                <group string="CFDI" name="cfdi">
+                    <field name="riesgo_puesto" />
+                    <field name="tablas_cfdi_id" />
+                    <field name="sueldo_diario"/>
+                    <field name="sueldo_hora"/>
+                    <field name="sueldo_diario_integrado"/>
+                    <field name="sueldo_base_cotizacion"/>
+                    <field name="antiguedad_anos"/>
+                </group>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
                 <field name="company_cfdi" invisible="1"/>
                 <page name="info_cdfi" string="CFDI" invisible="company_cfdi != True">
                         <group cols="4">
@@ -22,6 +33,8 @@
                                 <field name="contrato"/>
                                 <field name="jornada"/>
                                 <field name="sindicalizado"/>
+                                <field name="confianza"/>
+                                <field name="directivo"/>
                             </group>
                         </group>
                         <group cols="4">
@@ -37,12 +50,7 @@
                                 <field name="domicilio_receptor"/>
                             </group>
                         </group>
-                </page><!--
-                <page name="fondo_ahorro" string="Fondo de ahorro">
-                        <group cols="4">
-                            <field name="fondo_ahorro"/>
-                        </group>
-                </page>-->
+                </page>
                 <page name="nombre" string="Nombre" invisible="company_cfdi != True">
                    <group cols="4">
                       <field name="empleado_nombre"/>
@@ -50,7 +58,64 @@
                       <field name="empleado_materno"/>
                    </group>
                 </page>
-           </xpath>
+                <page name="info_conf" string="Configuración" invisible="company_cfdi != True">
+                  <group cols="4">
+                     <group string="Calculo de nóminas">
+                        <field name="periodicidad_pago" />
+                        <field name="conteo_dias" invisible="periodicidad_pago not in ['04', '05']"/>
+                        <field name="tipo_prima_vacacional"/>
+                        <field name="sept_dia" invisible="periodicidad_pago != '02'"/>
+                        <field name="septimo_dia" invisible="sept_dia == False"/>
+                        <field name="incapa_sept_dia" invisible="sept_dia == False"/>
+                        <field name="faltas_proporcionales" invisible="sept_dia == False"/>
+                        <field name="tipo_semana" invisible="periodicidad_pago != '02'"/>
+                        <field name="prima_dominical" />
+                        <field name="calc_isr_extra" />
+                     </group>
+                  </group>
+                  <group cols="4">
+                    <group string="Percepciones adicionales (Obsoletas)">
+                        <field name="bono_productividad"/>
+                        <field name="bono_productividad_amount" invisible="bono_productividad == False"/>
+                        <field name="bono_asistencia"/>
+                        <field name="bono_asistencia_amount" invisible="bono_asistencia == False"/>
+                        <field name="bono_puntualidad"/>
+                        <field name="bono_puntualidad_amount" invisible="bono_puntualidad == False"/>
+                        <field name="fondo_ahorro"/>
+                        <field name="fondo_ahorro_amount" invisible="fondo_ahorro == False"/>
+                        <field name="vale_despensa"/>
+                        <field name="vale_despensa_amount" invisible="vale_despensa == False"/>
+                        <field name="alimentacion"/>
+                        <field name="alimentacion_amount" invisible="alimentacion == False"/>
+                        <field name="percepcion_adicional"/>
+                        <field name="percepcion_adicional_amount" invisible="percepcion_adicional == False"/>
+                    </group>
+                    <group string="Deducciones adicionales (Obsoletas)">
+                        <field name="infonavit_fijo"/>
+                        <field name="infonavit_vsm"/>
+                        <field name="infonavit_porc"/>
+                        <field name="pens_alim"/>
+                        <field name="pens_alim_fijo"/>
+                        <field name="prestamo_fonacot"/>
+                        <field name="caja_ahorro"/>
+                        <field name="caja_ahorro_amount" invisible="caja_ahorro == False"/>
+                        <field name="deduccion_adicional"/>
+                        <field name="deduccion_adicional_amount" invisible="deduccion_adicional == False"/>
+                    </group>
+                  </group>
+                </page>
+                <page name="otras_entradas" string="Otras Entradas" invisible="company_cfdi != True">
+                    <field name="tabla_otras_entradas">
+                        <list editable="bottom">
+                            <field name="descripcion"/>
+                            <field name="codigo"/>
+                            <field name="monto"/>
+                            <field name="porcentaje"/>
+                            <field name="estado"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
         </field>
     </record>
 </odoo>

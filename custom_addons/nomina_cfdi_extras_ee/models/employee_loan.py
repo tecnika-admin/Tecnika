@@ -8,7 +8,7 @@ from calendar import monthrange
 import io
 import xlwt
 import itertools
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
 import base64
 
 class employee_loan(models.Model):
@@ -66,12 +66,14 @@ class employee_loan(models.Model):
                 periodo_de_pago = loan.loan_type_id.periodo_de_pago or ''
                 start_date =  loan.start_date #datetime.strptime(self.start_date, '%Y-%m-%d')
                 
-                if periodo_de_pago=='Semanal':
-                    end_date = start_date+relativedelta(weeks=loan.term)
-                elif periodo_de_pago=='Quincenal':
+                if periodo_de_pago == 'Semanal':
+                    end_date = start_date + relativedelta(weeks=loan.term)
+                elif periodo_de_pago == 'Catorcenal':
+                    end_date = start_date + relativedelta(weeks=loan.term*2)
+                elif periodo_de_pago == 'Quincenal':
                     end_date = loan.get_quincenal_end_date(start_date, loan.term)
                 else:
-                    end_date = start_date+relativedelta(months=loan.term)
+                    end_date = start_date + relativedelta(months=loan.term)
                 loan.end_date = end_date.strftime("%Y-%m-%d")
             else:
                loan.end_date = datetime.today().strftime("%Y-%m-%d")
@@ -138,9 +140,11 @@ class employee_loan(models.Model):
             date = self.start_date #datetime.strptime(self.start_date, '%Y-%m-%d')
             
             periodo_de_pago = self.loan_type_id.periodo_de_pago or ''
-            if periodo_de_pago=='Semanal':
-                date = date+relativedelta(weeks=i)
-            elif periodo_de_pago=='Quincenal':
+            if periodo_de_pago == 'Semanal':
+                date = date + relativedelta(weeks=i)
+            elif periodo_de_pago == 'Catorcenal':
+                date = date + relativedelta(weeks=i*2)
+            elif periodo_de_pago == 'Quincenal':
                 if i!=0:
                     date = date+relativedelta(days=i*15)
                     month_last_day = monthrange(date.year,date.month)[1]

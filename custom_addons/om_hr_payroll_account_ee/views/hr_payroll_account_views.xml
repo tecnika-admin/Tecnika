@@ -6,12 +6,12 @@
         <field name="model">hr.payslip</field>
         <field name="inherit_id" ref="om_hr_payroll.view_hr_payslip_form"/>
         <field name="arch" type="xml">
-            <field name="paid" position="after">
-                <field name="date" readonly="state != 'draft'"/>
-                <field name="journal_id" required="1" readonly="state != 'draft'"/>
-                <field name="move_id" readonly="1"/>
-                <field name="state" invisible="1"/>
-            </field>
+            <xpath expr="//group[@name='accounting']" position="inside">
+                    <field name="date" readonly="state != 'draft'"/>
+                    <field name="journal_id" required="1" readonly="state != 'draft'"/>
+                    <field name="move_id" readonly="1"/>
+                    <field name="state" invisible="1"/>
+            </xpath>
             <button name="action_payslip_cancel" position="attributes">
                 <attribute name="context">{'force_delete': True}</attribute>
                 <attribute name="confirm">Are you sure to delete the related accounting entry ?</attribute>
@@ -37,8 +37,9 @@
                     <group string="Cuentas deudoras" colspan="1">
                         <field name="cta_deudora_ids" nolabel="1" colspan="2">
                             <list name ="cuentas_deudoras" string="Cuentas deudoras" editable="bottom">
-                                <field name="employee_id" readonly="department_id"/>
-                                <field name="department_id" readonly="employee_id"/>
+                                <field name="employee_id" readonly="department_id or job_id"/>
+                                <field name="department_id" readonly="employee_id or job_id"/>
+                                <field name="job_id" readonly="employee_id or department_id"/>
                                 <field name="account_credit"/>
                                 <field name="analytic_distribution" widget="analytic_distribution" groups="analytic.group_analytic_accounting"/>
                             </list>
@@ -47,8 +48,9 @@
                     <group string="Cuentas acreedoras" colspan="1">
                         <field name="cta_acreedora_ids" nolabel="1" colspan="2">
                             <list name ="cuentas_acreedoras" string="Cuentas acreedoras" editable="bottom">
-                                <field name="employee_id" readonly="department_id"/>
-                                <field name="department_id" readonly="employee_id"/>
+                                <field name="employee_id" readonly="department_id or job_id"/>
+                                <field name="department_id" readonly="employee_id or job_id"/>
+                                <field name="job_id" readonly="employee_id or department_id"/>
                                 <field name="account_credit"/>
                                 <field name="analytic_distribution" widget="analytic_distribution" groups="analytic.group_analytic_accounting"/>
                             </list>
@@ -61,12 +63,12 @@
 
     <!-- Contract View -->
 
-    <record id="hr_contract_form_inherit" model="ir.ui.view">
-        <field name="name">hr.contract.view.form.inherit</field>
-        <field name="model">hr.contract</field>
-        <field name="inherit_id" ref="hr_contract.hr_contract_view_form"/>
+    <record id="hr_employee_form_inherit" model="ir.ui.view">
+        <field name="name">hr.employee.view.form.inherit</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//group[@name='top_info']" position="after">
+            <xpath expr="//group[@name='payroll_group']" position="after">
                 <group string="Contabilidad">
                     <field name="analytic_distribution" widget="analytic_distribution" groups="analytic.group_analytic_accounting"/>
                     <field name="journal_id"/>

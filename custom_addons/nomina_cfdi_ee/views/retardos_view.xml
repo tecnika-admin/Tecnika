@@ -21,6 +21,7 @@
              <header>
                  <button name="action_validar" string="Validar" type="object" invisible="state != 'draft'" class="btn-primary"/>
                  <button name="action_cancelar" string="Cancelar" type="object" invisible="state == 'cancel'" confirm="¿Seguro que quiere cancelar el registro?"/>
+                 <button name="action_draft" string="Borador" type="object" invisible="state != 'cancel'"/>
                  <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
              </header>
              <sheet>

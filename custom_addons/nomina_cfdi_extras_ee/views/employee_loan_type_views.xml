@@ -43,8 +43,8 @@
                 <field name="name"/>
                 <field name="loan_limit"/>
                 <field name="loan_term"/>
-                <field name="interest_rate"/>
-                <field name="interest_type"/>
+                <field name="periodo_de_pago"/>
+                <field name="tipo_deduccion"/>
             </list>
         </field>
     </record>

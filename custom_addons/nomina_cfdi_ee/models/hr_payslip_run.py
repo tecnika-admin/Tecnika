@@ -29,7 +29,7 @@ class HrPayslipRun(models.Model):
     all_payslip_generated = fields.Boolean("Payslip Generated",compute='_compute_payslip_cgdi_generated')
     all_payslip_generated_draft = fields.Boolean("Payslip Generated draft",compute='_compute_payslip_cgdi_generated_draft')
     tipo_nomina = fields.Selection(
-        selection=[('O', 'Nómina ordinaria'), ('E', 'Nómina extraordinaria'),], string=_('Tipo de nómina'), required=True, default='O')
+        selection=[('O', 'Nómina ordinaria'), ('E', 'Nómina extraordinaria'),], string='Tipo de nómina', required=True, default='O')
     estructura = fields.Many2one('hr.payroll.structure', string='Estructura')
     tabla_otras_entradas = fields.One2many('otras.entradas', 'form_id')
     dias_pagar = fields.Float(string='Dias a pagar', store=True)
@@ -52,9 +52,9 @@ class HrPayslipRun(models.Model):
                    ('09', 'Precio alzado'), 
                    ('10', 'Pago por consignación'), 
                    ('99', 'Otra periodicidad'),],
-        string=_('Frecuencia de pago'),
+        string='Frecuencia de pago',
     )
-    fecha_pago = fields.Date(string=_('Fecha de pago'))
+    fecha_pago = fields.Date('Fecha de pago')
     isr_anual = fields.Boolean(string='ISR anual')
     mes = fields.Selection(
         selection=[('01', 'Enero / Periodo 1'), 
@@ -70,7 +70,7 @@ class HrPayslipRun(models.Model):
                    ('11', 'Noviembre / Periodo 11'),
                    ('12', 'Diciembre / Periodo 12'),
                    ],
-        string=_('Mes / Periodo'),)
+        string='Mes / Periodo',)
     company_cfdi = fields.Boolean(related="company_id.company_cfdi",store=True)
     total_procesamiento = fields.Float(string='Total Nominas', compute='_compute_total_procesamiento')
 
@@ -118,17 +118,22 @@ class HrPayslipRun(models.Model):
                     delta = self.date_end - self.date_start
                     self.dias_pagar = delta.days + 1
                     self.imss_dias = delta.days + 1
-                else:
+                elif self.tipo_configuracion.tipo_pago == '03':
                     self.dias_pagar = 15.21
                     self.imss_dias = 15.21
+                else:
+                    self.dias_pagar = 15.2083
+                    self.imss_dias = 15.2083
             elif self.periodicidad_pago == '05':
                 if self.tipo_configuracion.tipo_pago == '01':
                     self.dias_pagar = 30
                 elif self.tipo_configuracion.tipo_pago == '02':
                     delta = self.date_end - self.date_start
                     self.dias_pagar = delta.days + 1
-                else:
+                elif self.tipo_configuracion.tipo_pago == '03':
                     self.dias_pagar = 30.42
+                else:
+                    self.dias_pagar = 30.4166
             else:
                 delta = self.date_end - self.date_start
                 self.dias_pagar = delta.days + 1
@@ -422,8 +427,9 @@ class ConfiguracionNomina(models.Model):
     tipo_pago = fields.Selection(
         selection=[('01', 'Por periodo'), 
                    ('02', 'Por día'),
-                   ('03', 'Mes proporcional'),],
-        string=_('Conteo de días'),
+                   ('03', 'Mes proporcional 15.21'),
+                   ('04', 'Mes proporcional 15.2083'),],
+        string='Conteo de días',
     )
     fijo_imss = fields.Boolean(string='Dias fijos')
     imss_dias = fields.Float(string='Dias a cotizar en la nómina', store=True)
@@ -442,7 +448,7 @@ class ConfiguracionNomina(models.Model):
                    ('09', 'Precio alzado'), 
                    ('10', 'Pago por consignación'), 
                    ('99', 'Otra periodicidad'),],
-        string=_('Periodicidad de pago CFDI'), required=True
+        string='Periodicidad de pago CFDI', required=True
     )
 
 class NominaMessageWizard(models.TransientModel):

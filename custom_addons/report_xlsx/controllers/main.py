@@ -42,8 +42,7 @@ class ReportController(ReportController):
             xlsxhttpheaders = [
                 (
                     "Content-Type",
-                    "application/vnd.openxmlformats-"
-                    "officedocument.spreadsheetml.sheet",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 ),
                 ("Content-Length", len(xlsx)),
             ]
@@ -51,7 +50,7 @@ class ReportController(ReportController):
         return super().report_routes(reportname, docids, converter, **data)
 
     @route()
-    def report_download(self, data, context=None, token=None):
+    def report_download(self, data, context=None, token=None, readonly=True):
         requestcontent = json.loads(data)
         url, report_type = requestcontent[0], requestcontent[1]
         if report_type == "xlsx":
@@ -104,4 +103,6 @@ class ReportController(ReportController):
                 error = {"code": 200, "message": "Odoo Server Error", "data": se}
                 return request.make_response(html_escape(json.dumps(error)))
         else:
-            return super().report_download(data, context=context, token=token)
+            return super().report_download(
+                data, context, token=token, readonly=readonly
+            )

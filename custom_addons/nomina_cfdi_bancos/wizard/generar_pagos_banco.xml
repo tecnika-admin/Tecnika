@@ -23,6 +23,7 @@
                     <field name="scotia_referencia" invisible="banco_rfc != 'SIN9412025I4'"/>
                     <field name="inbursa_cuenta" invisible="banco_rfc != 'BII931004P61'"/>
                     <field name="bajio_afinidad" invisible="banco_rfc != 'BBA940707IE1'"/>
+                    <field name="afirme_descripcion" invisible="banco_rfc != 'BAF950102JP5'"/>
                     <field name="fecha_dispersion" />
                 </group>
                 <footer>

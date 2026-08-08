@@ -3,7 +3,8 @@
 from odoo import models, fields, api
 from collections import defaultdict
 import io
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
+import xlwt
 import base64
 import logging
 _logger = logging.getLogger(__name__)
@@ -60,9 +61,9 @@ class WizardCajaAhorro(models.TransientModel):
         row = 5
         for empleado in employee_ids:
              total = 0
-             if empleado.contract_ids:
+             if empleado.tablas_cfdi_id:
                 ############ Abono ###################
-                rule = self.env['hr.salary.rule'].search([('id', '=', empleado.contract_ids[0].tablas_cfdi_id.caja_ahorro_abono.id)])
+                rule = self.env['hr.salary.rule'].search([('id', '=', empleado.tablas_cfdi_id.caja_ahorro_abono.id)])
                 payslips = self.env['hr.payslip'].search([('employee_id', '=', empleado.id), ('state','=', 'done'), ('date_from','>=',self.date_from), ('date_to','<=',self.date_to)])
                 payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id == rule.id)
                 worksheet.write(row, 0, empleado.department_id.name)
@@ -76,7 +77,7 @@ class WizardCajaAhorro(models.TransientModel):
                    row +=1
 
                 ############ Retiro ###################
-                rule = self.env['hr.salary.rule'].search([('id', '=', empleado.contract_ids[0].tablas_cfdi_id.caja_ahorro_retiro.id)])
+                rule = self.env['hr.salary.rule'].search([('id', '=', empleado.tablas_cfdi_id.caja_ahorro_retiro.id)])
                 payslips = self.env['hr.payslip'].search([('employee_id', '=', empleado.id), ('state','=', 'done'), ('date_from','>=',self.date_from), ('date_to','<=',self.date_to)])
                 payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id == rule.id)
                 for line in payslip_lines:
@@ -102,9 +103,9 @@ class WizardCajaAhorro(models.TransientModel):
            for extra in employees_extras:
                 total = 0
                 empleado = self.env['hr.employee'].search([('id','=', extra),('active', '=', False)])
-                contrato = self.env['hr.contract'].search([('employee_id','=', extra)])
-                if contrato:
-                   rule = self.env['hr.salary.rule'].search([('id', '=', contrato.tablas_cfdi_id.caja_ahorro_abono.id)])
+                #contrato = self.env['hr.contract'].search([('employee_id','=', extra)])
+                if empleado.tablas_cfdi_id:
+                   rule = self.env['hr.salary.rule'].search([('id', '=', empleado.tablas_cfdi_id.caja_ahorro_abono.id)])
                    payslips = self.env['hr.payslip'].search([('employee_id', '=', extra), ('state','=', 'done'), ('date_from','>=',self.date_from), ('date_to','<=',self.date_to)])
                    payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.id == rule.id)
                    worksheet.write(row, 0, empleado.department_id.name)

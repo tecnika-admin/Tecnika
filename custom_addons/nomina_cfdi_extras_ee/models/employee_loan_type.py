@@ -20,7 +20,9 @@ class employee_loan_type(models.Model):
     interest_account = fields.Many2one('account.account',string='Cuenta de intereses')
     journal_id = fields.Many2one('account.journal',string='Diario')
 
-    periodo_de_pago = fields.Selection([('Semanal','Semanal'), ('Quincenal','Quincenal')], string='Periodo de pago', required=True)
+    periodo_de_pago = fields.Selection([('Semanal','Semanal'),
+                                        ('Catorcenal','Catorcenal'),
+                                        ('Quincenal','Quincenal')], string='Periodo de pago', required=True)
     tipo_deduccion = fields.Selection([('1','Préstamo'), 
                                        ('2','Descuento periodico 1'),
                                        ('3','Descuento periodico 2'),
