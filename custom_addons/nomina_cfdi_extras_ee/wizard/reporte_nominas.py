@@ -6,7 +6,8 @@ from odoo import models, fields, api
 #from dateutil import relativedelta
 from collections import defaultdict
 import io
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
+import xlwt
 import base64
 
 class WizardReporteNominas(models.TransientModel):
@@ -32,6 +33,8 @@ class WizardReporteNominas(models.TransientModel):
             domain.append(('employee_id','=',self.employee_id.id))
         if not self.employee_id and self.department_id:
             employees = self.env['hr.employee'].search([('department_id', '=', self.department_id.id)])
+            employee_no_active = self.env['hr.employee'].search([('department_id', '=', self.department_id.id), ('active', '=', False)]) 
+            employees += employee_no_active
             domain.append(('employee_id','in',employees.ids))
 
         payslips = self.env['hr.payslip'].search(domain)

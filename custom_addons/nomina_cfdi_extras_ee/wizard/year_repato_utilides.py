@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
 from odoo import api, fields, models, _
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 import io
-from odoo.tools.misc import xlwt
+#from odoo.tools.misc import xlwt
+import xlwt
 import base64
 from odoo.exceptions import UserError
 import logging
@@ -13,7 +14,7 @@ class XLSUploadWizard(models.TransientModel):
     _name = 'repart.outilidades.wizard'
     _description = 'Reparto utilidades'
 
-    ano = fields.Selection([('2023','2023'),('2024','2024'),('2025','2025')],string="Año")
+    ano = fields.Selection([('2025','2025'),('2024','2024'),('2023','2023')],string="Año")
     total_repartir = fields.Float("Monto a repartir")
     file_data = fields.Binary("File Data")
     date_slip = fields.Date(string='Fecha')
@@ -29,20 +30,53 @@ class XLSUploadWizard(models.TransientModel):
             raise UserError(_('Falta colocar una monto para repartir'))
 
         domain=[('state','=', 'done')]
-        domain.append(('date_from','>=',date(int(self.ano), 1, 1)))
-        domain.append(('date_from','<=',date(int(self.ano), 12, 31)))
-        domain.append(('employee_id.regimen','=','02'))
+        domain.append(('date_from', '>=', date(int(self.ano), 1, 1)))
+        domain.append(('date_from', '<=', date(int(self.ano), 12, 31)))
+        domain.append(('employee_id.regimen', '=', '02'))
+        domain.append(('employee_id.directivo', '=', False))
         payslips = self.env['hr.payslip'].search(domain)
         domain.append(('tipo_nomina','=','O'))
         payslips2 = self.env['hr.payslip'].search(domain)
 
-        payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.code == 'NET')
-        work_lines = payslips2.mapped('worked_days_line_ids').filtered(lambda x: x.code in ['WORK100', 'VAC', 'FJC', 'SEPT'])
+        payslip_lines_all = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.integrar_ptu)
+        work_lines_all = payslips2.mapped('worked_days_line_ids').filtered(lambda x: x.code in ['WORK100', 'VAC', 'FJC', 'SEPT'])
+        payslip_lines = []
+        work_lines = []
 
-        for slip in payslip_lines:
-           monto_total += slip.total
-        if monto_total == 0:
-           raise UserError(_('No hay monto pagado en las nóminas del periodo seleccionado'))
+        if not payslip_lines_all:
+            raise UserError(_('No hay nóminas con conceptos configurados para contar al PTU'))
+
+        for slip in payslip_lines_all:
+            if slip.employee_id.regimen != '02': # Si su regimen de no es de sueldos
+                continue
+            if slip.employee_id.contrato != '01': # Si su contrato no es indeterminado debe trabajar al menos 60 días en el año
+                first_day_date = date(datetime.today().date().year - 1, 1, 1)
+                last_day_date = date(datetime.today().date().year - 1, 12, 31)
+                if slip.contract_id.date_start > first_day_date:
+                    first_day_date = slip.contract_id.date_start
+                if slip.contract_id.date_end: # Si ya fue dado de baja
+                    dias_trabajados = (slip.contract_id.date_end - first_day_date).days
+                else: # Calcula dias trabajados en el año
+                    dias_trabajados = (last_day_date - first_day_date).days
+                if dias_trabajados < 60:
+                    continue
+            payslip_lines += slip
+
+        for work in work_lines_all:
+            if work.employee_id.regimen != '02':
+                continue
+            if work.employee_id.contrato != '01': # Si su contrato no es indeterminado debe trabajar al menos 60 días en el año
+                first_day_date = date(datetime.today().date().year - 1, 1, 1)
+                last_day_date = date(datetime.today().date().year - 1, 12, 31)
+                if work.contract_id.date_start > first_day_date:
+                    first_day_date = work.contract_id.date_start
+                if work.contract_id.date_end:
+                    dias_trabajados = (work.contract_id.date_end - first_day_date).days
+                else: # Calcula dias trabajados en el año
+                    dias_trabajados = (last_day_date - first_day_date).days
+                if dias_trabajados < 60:
+                    continue
+            work_lines += work
 
         for work in work_lines:
            dias_laborados += work.number_of_days
@@ -63,18 +97,11 @@ class XLSUploadWizard(models.TransientModel):
         worksheet.write(4, 0, 'Monto a repartir', bold)
         worksheet.write(4, 1, self.total_repartir)
         worksheet.write(5, 0, 'Monto total', bold)
-        worksheet.write(5, 1, monto_total)
         worksheet.write(6, 0, 'Dias totales', bold)
         worksheet.write(6, 1, dias_laborados)
-
         coef_dias = (self.total_repartir / 2) / dias_laborados
-        coef_monto = (self.total_repartir / 2) / monto_total
-
-        worksheet.write(7, 0, 'Coeficiente monto', bold)
-        worksheet.write(7, 1, coef_monto)
         worksheet.write(8, 0, 'Coeficiente dias', bold)
         worksheet.write(8, 1, coef_dias)
-
         worksheet.write(10, 0, 'Empleado', bold)
         worksheet.write(10, 1, 'Salario acumulado', bold)
         worksheet.write(10, 2, 'Dias acumulados', bold)
@@ -97,11 +124,47 @@ class XLSUploadWizard(models.TransientModel):
             else:
                 days[line.payslip_id.employee_id] += line.number_of_days
 
-        _logger.info('days %s', days)
+        ####### Limitar el monto máximo de sueldo anual con base en los límites de empleados sindicalizados #######
+        max_sueldo = 0
+        for employee in amount.items():
+            if employee[0].sindicalizado:
+                contract_id = employee[0].contract_id
+                if not contract_id:
+                    contract_id = self.env['hr.contract'].search([('employee_id','=',employee[0].id)], limit=1)
+                if contract_id.sueldo_diario > max_sueldo:
+                    max_sueldo = contract_id.sueldo_diario
+        max_sueldo = max_sueldo * 365 * 1.20
+
+        #Si hay empleados sindicalizados limitar su sueldo
+        amount2 = {}
+        if max_sueldo > 0:
+            for employee in amount.items():
+                if not employee[0].confianza:
+                    continue
+                if employee[1] > max_sueldo:
+                    amount2[employee[0]] = max_sueldo
+                    monto_total += max_sueldo
+                else:
+                    monto_total += employee[1]
+                    amount2[employee[0]] = employee[1]
+        #Si no hay empleados sindicalizados toma lo ya calculado previamente.
+        else:
+            for employee in amount.items():
+                monto_total += employee[1]
+            amount2 = amount
+        ################################################################################################################
+
+        if monto_total == 0:
+           raise UserError(_('No hay monto pagado en las nóminas del periodo seleccionado'))
+
+        coef_monto = (self.total_repartir / 2) / monto_total
+        worksheet.write(7, 0, 'Coeficiente monto', bold)
+        worksheet.write(7, 1, coef_monto)
+        worksheet.write(5, 1, monto_total)
+
         tot_empl_amount = 0
         tot_empl_days = 0
-        for employee in amount.items():
-           # _logger.info('empleado %s', employee)
+        for employee in amount2.items():
              worksheet.write(row, 0, employee[0].name)
              tot_empl_amount = employee[1]
              worksheet.write(row, 1, tot_empl_amount)
@@ -117,10 +180,10 @@ class XLSUploadWizard(models.TransientModel):
              worksheet.write(row, 4, tot_empl_days * coef_dias)
              total01 = tot_empl_amount * coef_monto + tot_empl_days * coef_dias
              # revisar monto exento  límite máximo tres meses del salario del trabajador o el promedio de la participación recibida en los últimos tres años.
-             contract_id = employee[0].contract_id
-             if not contract_id:
-                 contract_id = self.env['hr.contract'].search([('employee_id','=',employee[0].id)], limit=1)
-             max_limit = contract_id.sueldo_diario * 90
+             #contract_id = employee[0].contract_id
+             #if not contract_id:
+             #    contract_id = self.env['hr.contract'].search([('employee_id','=',employee[0].id)], limit=1)
+             max_limit = employee[0].sueldo_diario * 90
              if total01 > max_limit:
                  total01 = max_limit
              worksheet.write(row, 5, total01)
@@ -155,20 +218,53 @@ class XLSUploadWizard(models.TransientModel):
             raise UserError(_('Falta colocar una monto para repartir'))
 
         domain=[('state','=', 'done')]
-        domain.append(('date_from','>=',date(int(self.ano), 1, 1)))
-        domain.append(('date_from','<=',date(int(self.ano), 12, 31)))
-        domain.append(('employee_id.regimen','=','02'))
+        domain.append(('date_from', '>=', date(int(self.ano), 1, 1)))
+        domain.append(('date_from', '<=', date(int(self.ano), 12, 31)))
+        domain.append(('employee_id.regimen', '=', '02'))
+        domain.append(('employee_id.directivo', '=', False))
         payslips = self.env['hr.payslip'].search(domain)
         domain.append(('tipo_nomina','=','O'))
         payslips2 = self.env['hr.payslip'].search(domain)
 
-        payslip_lines = payslips.mapped('line_ids').filtered(lambda x: x.code == 'NET')
-        work_lines = payslips2.mapped('worked_days_line_ids').filtered(lambda x: x.code in ['WORK100', 'VAC', 'FJC', 'SEPT'])
+        payslip_lines_all = payslips.mapped('line_ids').filtered(lambda x: x.salary_rule_id.integrar_ptu)
+        work_lines_all = payslips2.mapped('worked_days_line_ids').filtered(lambda x: x.code in ['WORK100', 'VAC', 'FJC', 'SEPT'])
+        payslip_lines = []
+        work_lines = []
 
-        for slip in payslip_lines:
-           monto_total += slip.total
-        if monto_total == 0:
-           raise UserError(_('No hay monto pagado en las nóminas del periodo seleccionado'))
+        if not payslip_lines_all:
+            raise UserError(_('No hay nóminas con conceptos configurados para contar al PTU'))
+
+        for slip in payslip_lines_all:
+            if slip.employee_id.regimen != '02': # Si su regimen de no es de sueldos
+                continue
+            if slip.employee_id.contrato != '01': # Si su contrato no es indeterminado debe trabajar al menos 60 días en el año
+                first_day_date = date(datetime.today().date().year - 1, 1, 1)
+                last_day_date = date(datetime.today().date().year - 1, 12, 31)
+                if slip.contract_id.date_start > first_day_date:
+                    first_day_date = slip.contract_id.date_start
+                if slip.contract_id.date_end: # Si ya fue dado de baja
+                    dias_trabajados = (slip.contract_id.date_end - first_day_date).days
+                else: # Calcula dias trabajados en el año
+                    dias_trabajados = (last_day_date - first_day_date).days
+                if dias_trabajados < 60:
+                    continue
+            payslip_lines += slip
+
+        for work in work_lines_all:
+            if work.employee_id.regimen != '02':
+                continue
+            if work.employee_id.contrato != '01': # Si su contrato no es indeterminado debe trabajar al menos 60 días en el año
+                first_day_date = date(datetime.today().date().year - 1, 1, 1)
+                last_day_date = date(datetime.today().date().year - 1, 12, 31)
+                if work.contract_id.date_start > first_day_date:
+                    first_day_date = work.contract_id.date_start
+                if work.contract_id.date_end:
+                    dias_trabajados = (slip.contract_id.date_end - first_day_date).days
+                else: # Calcula dias trabajados en el año
+                    dias_trabajados = (last_day_date - first_day_date).days
+                if dias_trabajados < 60:
+                    continue
+            work_lines += work
 
         for work in work_lines:
            dias_laborados += work.number_of_days
@@ -176,7 +272,6 @@ class XLSUploadWizard(models.TransientModel):
            raise UserError(_('No hay dias laborados en las nóminas del periodo seleccionado.'))
 
         coef_dias = (self.total_repartir / 2) / dias_laborados
-        coef_monto = (self.total_repartir / 2) / monto_total
 
         amount = {}
         for line in payslip_lines:
@@ -192,6 +287,37 @@ class XLSUploadWizard(models.TransientModel):
             else:
                 days[line.payslip_id.employee_id] += line.number_of_days
 
+        max_sueldo = 0
+        for employee in amount.items():
+            if employee[0].sindicalizado:
+                contract_id = employee[0].contract_id
+                if not contract_id:
+                    contract_id = self.env['hr.contract'].search([('employee_id','=',employee[0].id)], limit=1)
+                if contract_id.sueldo_diario > max_sueldo:
+                    max_sueldo = contract_id.sueldo_diario
+        max_sueldo = max_sueldo * 365 * 1.20
+
+        amount2 = {}
+        if max_sueldo > 0:
+            for employee in amount.items():
+                if not employee[0].confianza:
+                    continue
+                if employee[1] > max_sueldo:
+                    amount2[employee[0]] = max_sueldo
+                    monto_total += max_sueldo
+                else:
+                    monto_total += employee[1]
+                    amount2[employee[0]] = employee[1]
+        else:
+            for employee in amount.items():
+                monto_total += employee[1]
+            amount2 = amount
+
+        if monto_total == 0:
+           raise UserError(_('No hay monto pagado en las nóminas del periodo seleccionado'))
+
+        coef_monto = (self.total_repartir / 2) / monto_total
+
         tot_empl_amount = 0
         tot_empl_days = 0
 
@@ -205,7 +331,7 @@ class XLSUploadWizard(models.TransientModel):
                'fecha_pago' : self.date_slip,
         })
 
-        for employee in amount.items():
+        for employee in amount2.items():
             tot_empl_amount = employee[1]
             try:
                 id_days = list(days).index(employee[0])
@@ -216,10 +342,10 @@ class XLSUploadWizard(models.TransientModel):
             tot_empl_days = list(days.values())[id_days]
             total01 = tot_empl_amount * coef_monto + tot_empl_days * coef_dias
             # revisar monto exento  límite máximo tres meses del salario del trabajador o el promedio de la participación recibida en los últimos tres años.
-            contract_id = employee[0].contract_id
-            if not contract_id:
-                contract_id = self.env['hr.contract'].search([('employee_id','=',employee[0].id)], limit=1)
-            max_limit = contract_id.sueldo_diario * 90
+            #contract_id = employee[0].contract_id
+            #if not contract_id:
+            #    contract_id = self.env['hr.contract'].search([('employee_id','=',employee[0].id)], limit=1)
+            max_limit = employee[0].sueldo_diario * 90
             if total01 > max_limit:
                  total01 = max_limit
 
@@ -232,9 +358,9 @@ class XLSUploadWizard(models.TransientModel):
                 payslip_vals2['struct_id'] = structure.id
 
             other_inputs = []
-            other_inputs.append((0,0,{'name' :'Reparto utilidades', 'code' : 'PTU', 'contract_id':contract_id.id, 'amount': total01}))
+            other_inputs.append((0,0,{'name' :'Reparto utilidades', 'code' : 'PTU', 'contract_id': employee[0].version_id.id, 'amount': total01}))
             worked_days2 = []
-            worked_days2.append((0,0,{'name' :'Dias a pagar', 'code' : 'WORK100', 'contract_id':contract_id.id, 'number_of_days': 0}))
+            worked_days2.append((0,0,{'name' :'Dias a pagar', 'code' : 'WORK100', 'contract_id':employee[0].version_id.id, 'number_of_days': 0}))
 
             payslip_vals2.update({
                'employee_id' : employee[0].id,
@@ -243,7 +369,7 @@ class XLSUploadWizard(models.TransientModel):
                'payslip_run_id' : batch.id,
                'date_from': self.date_slip,
                'date_to': self.date_slip,
-               'contract_id' : contract_id.id,
+               'contract_id' : employee[0].version_id.id,
                'dias_pagar': 1,
                'fecha_pago' : self.date_slip,
                'worked_days_line_ids': worked_days2,

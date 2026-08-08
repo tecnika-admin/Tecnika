@@ -41,7 +41,7 @@ class HrPayslip(models.Model):
     @api.onchange('contract_id')
     def onchange_contract(self):
         super(HrPayslip, self).onchange_contract()
-        self.journal_id = self.contract_id.journal_id.id or (not self.contract_id and self.default_get(['journal_id'])['journal_id'])
+        self.journal_id = self.employee_id.journal_id.id or (not self.employee_id and self.default_get(['journal_id'])['journal_id'])
 
     def action_payslip_cancel(self):
         moves = self.mapped('move_id')
@@ -78,27 +78,14 @@ class HrPayslip(models.Model):
                     amount = currency.round(line.total)
                     if currency.is_zero(amount):
                         continue
-                    debit_account_id = line.salary_rule_id.account_debit.id
-                    credit_account_id = line.salary_rule_id.account_credit.id
 
-                    #obtener la cuenta analitica de crédito
-                    if slip.contract_id.analytic_distribution:
-                       credit_analytic_account_id = slip.contract_id.analytic_distribution
-                    else:
-                       credit_analytic_account_id = None
-                    if not credit_analytic_account_id and line.salary_rule_id.analytic_distribution:
-                       credit_analytic_account_id = line.salary_rule_id.analytic_distribution
-
-                    #obtener la cuenta analitica de debito
-                    if slip.contract_id.analytic_distribution:
-                       debit_analytic_account_id = slip.contract_id.analytic_distribution
+                    department_id = slip.employee_id and slip.employee_id.department_id and slip.employee_id.department_id.id or False
+                    job_id = slip.employee_id and slip.employee_id.job_id and slip.employee_id.job_id.id or False
+                    #obtener la cuenta de debito
+                    if slip.employee_id.analytic_distribution:
+                       debit_analytic_account_id = slip.employee_id.analytic_distribution
                     else:
                        debit_analytic_account_id = None
-                    if not debit_analytic_account_id and line.salary_rule_id.analytic_distribution:
-                       debit_analytic_account_id = line.salary_rule_id.analytic_distribution
-
-                    department_id = slip.employee_id.contract_id and slip.employee_id.contract_id.department_id and slip.employee_id.contract_id.department_id.id or False
-                    #obtener la cuenta de debito
                     debit_account_id = False
                     employee_account = line.salary_rule_id.cta_deudora_ids.filtered(lambda x:x.employee_id.id==slip.employee_id.id and x.account_credit)
                     if employee_account:
@@ -110,11 +97,23 @@ class HrPayslip(models.Model):
                         if deudoras:
                             debit_account_id = deudoras[0].account_credit.id
                             if deudoras[0].analytic_distribution and not debit_analytic_account_id:
-                                debit_analytic_account_id = deudoras[0].analytic_distribution
+                               debit_analytic_account_id = deudoras[0].analytic_distribution
+                    if job_id and not debit_account_id:
+                        deudoras = line.salary_rule_id.cta_deudora_ids.filtered(lambda x:x.job_id.id==job_id and x.account_credit)
+                        if deudoras:
+                            debit_account_id = deudoras[0].account_credit.id
+                            if deudoras[0].analytic_distribution and not debit_analytic_account_id:
+                               debit_analytic_account_id = deudoras[0].analytic_distribution
                     if not debit_account_id:
                         debit_account_id = line.salary_rule_id.account_debit.id
+                    if not debit_analytic_account_id and line.salary_rule_id.analytic_distribution:
+                       debit_analytic_account_id = line.salary_rule_id.analytic_distribution
 
                     #obtener la cuenta de crédito
+                    if slip.employee_id.analytic_distribution:
+                       credit_analytic_account_id = slip.employee_id.analytic_distribution
+                    else:
+                       credit_analytic_account_id = None
                     credit_account_id = False
                     employee_account = line.salary_rule_id.cta_acreedora_ids.filtered(lambda x:x.employee_id.id==slip.employee_id.id and x.account_credit)
                     if employee_account:
@@ -127,8 +126,16 @@ class HrPayslip(models.Model):
                             credit_account_id = contabilidads[0].account_credit.id
                             if contabilidads[0].analytic_distribution and not credit_analytic_account_id:
                                credit_analytic_account_id = contabilidads[0].analytic_distribution
+                    if job_id and not credit_account_id:
+                        contabilidads = line.salary_rule_id.cta_acreedora_ids.filtered(lambda x:x.job_id.id==job_id and x.account_credit)
+                        if contabilidads:
+                            credit_account_id = contabilidads[0].account_credit.id
+                            if contabilidads[0].analytic_distribution and not debit_analytic_account_id:
+                               debit_analytic_account_id = contabilidads[0].analytic_distribution
                     if not credit_account_id:
                         credit_account_id = line.salary_rule_id.account_credit.id
+                    if not credit_analytic_account_id and line.salary_rule_id.analytic_distribution:
+                       credit_analytic_account_id = line.salary_rule_id.analytic_distribution
 
                     if debit_account_id:
                         debit_line = (0, 0, {
@@ -200,17 +207,16 @@ class HrSalaryRule(models.Model):
     _name = 'hr.salary.rule'
 
     account_tax_id = fields.Many2one('account.tax', 'Cuenta de Impuesto')
-    account_debit = fields.Many2one('account.account', 'Cuenta débito', domain=[('deprecated', '=', False)])
-    account_credit = fields.Many2one('account.account', 'Cuenta crédito', domain=[('deprecated', '=', False)])
+    account_debit = fields.Many2one('account.account', 'Cuenta débito', domain=[('active', '=', True)])
+    account_credit = fields.Many2one('account.account', 'Cuenta crédito', domain=[('active', '=', True)])
     cta_deudora_ids = fields.One2many('nomina.deudora', 'doc_id', 'cta_deudora')
     cta_acreedora_ids = fields.One2many('nomina.acreedora', 'doc_id', 'cta_acreedora')
 
 
 class HrContract(models.Model):
-    _inherit = ['hr.contract', 'analytic.mixin']
-    _name = 'hr.contract'
+    _inherit = ['hr.employee', 'analytic.mixin']
+    _name = 'hr.employee'
 
-    #analytic_distribution = fields.Json(inverse="_inverse_analytic_distribution", 'Cuenta analítica')
     journal_id = fields.Many2one('account.journal', 'Diario de nómina')
 
 class HrPayslipRun(models.Model):
@@ -265,10 +271,11 @@ class HrPayslipRun(models.Model):
                     if currency.is_zero(amount): #float_is_zero(amount, precision_digits=precision):
                         continue
 
-                    department_id = slip.employee_id.contract_id and slip.employee_id.contract_id.department_id and slip.employee_id.contract_id.department_id.id or False
+                    department_id = slip.employee_id and slip.employee_id.department_id and slip.employee_id.department_id.id or False
+                    job_id = slip.employee_id and slip.employee_id.job_id and slip.employee_id.job_id.id or False
                     #obtener la cuenta de debito
-                    if slip.contract_id.analytic_distribution:
-                       debit_analytic_account_id = slip.contract_id.analytic_distribution
+                    if slip.employee_id.analytic_distribution:
+                       debit_analytic_account_id = slip.employee_id.analytic_distribution
                     else:
                        debit_analytic_account_id = None
                     debit_account_id = False
@@ -283,14 +290,20 @@ class HrPayslipRun(models.Model):
                             debit_account_id = deudoras[0].account_credit.id
                             if deudoras[0].analytic_distribution and not debit_analytic_account_id:
                                debit_analytic_account_id = deudoras[0].analytic_distribution
+                    if job_id and not debit_account_id:
+                        deudoras = line.salary_rule_id.cta_deudora_ids.filtered(lambda x:x.job_id.id==job_id and x.account_credit)
+                        if deudoras:
+                            debit_account_id = deudoras[0].account_credit.id
+                            if deudoras[0].analytic_distribution and not debit_analytic_account_id:
+                               debit_analytic_account_id = deudoras[0].analytic_distribution
                     if not debit_account_id:
                         debit_account_id = line.salary_rule_id.account_debit.id
                     if not debit_analytic_account_id and line.salary_rule_id.analytic_distribution:
                        debit_analytic_account_id = line.salary_rule_id.analytic_distribution
 
                     #obtener la cuenta de crédito
-                    if slip.contract_id.analytic_distribution:
-                       credit_analytic_account_id = slip.contract_id.analytic_distribution
+                    if slip.employee_id.analytic_distribution:
+                       credit_analytic_account_id = slip.employee_id.analytic_distribution
                     else:
                        credit_analytic_account_id = None
                     credit_account_id = False
@@ -305,6 +318,12 @@ class HrPayslipRun(models.Model):
                             credit_account_id = contabilidads[0].account_credit.id
                             if contabilidads[0].analytic_distribution and not credit_analytic_account_id:
                                credit_analytic_account_id = contabilidads[0].analytic_distribution
+                    if job_id and not credit_account_id:
+                        contabilidads = line.salary_rule_id.cta_acreedora_ids.filtered(lambda x:x.job_id.id==job_id and x.account_credit)
+                        if contabilidads:
+                            credit_account_id = contabilidads[0].account_credit.id
+                            if contabilidads[0].analytic_distribution and not debit_analytic_account_id:
+                               debit_analytic_account_id = contabilidads[0].analytic_distribution
                     if not credit_account_id:
                         credit_account_id = line.salary_rule_id.account_credit.id
                     if not credit_analytic_account_id and line.salary_rule_id.analytic_distribution:
@@ -322,6 +341,7 @@ class HrPayslipRun(models.Model):
                             'analytic_distribution': debit_analytic_account_id,
                             'tax_line_id': line.salary_rule_id.account_tax_id.id,
                             'department_id': department_id,
+                            'job_id': job_id,
                         })
                         line_ids.append(debit_line)
                         debit_sum += debit_line[2]['debit'] - debit_line[2]['credit']
@@ -338,6 +358,7 @@ class HrPayslipRun(models.Model):
                             'analytic_distribution': credit_analytic_account_id,
                             'tax_line_id': line.salary_rule_id.account_tax_id.id,
                             'department_id': department_id,
+                            'job_id': job_id,
                         })
                         line_ids.append(credit_line)
                         credit_sum += credit_line[2]['credit'] - credit_line[2]['debit']
@@ -356,6 +377,7 @@ class HrPayslipRun(models.Model):
                         'debit': 0.0,
                         'credit': currency.round(debit_sum - credit_sum),
                         'department_id': False,
+                        'job_id': False,
                     })
                     line_ids.append(adjust_credit)
             elif currency.compare_amounts(debit_sum, credit_sum) == -1:
@@ -371,6 +393,7 @@ class HrPayslipRun(models.Model):
                         'debit': currency.round(credit_sum - debit_sum),
                         'credit': 0.0,
                         'department_id': False,
+                        'job_id': False,
                     })
                     line_ids.append(adjust_debit)
 
@@ -415,8 +438,30 @@ class HrPayslipRun(models.Model):
                    for data,item in new_dict.items():
                        items.append((0, 0, item))
                    line_ids = items
+
+                if tipo_de_compacta == '03':
+                   for line in line_ids:
+                       account_id = 'key' + str(line[2].get('account_id')) + str(line[2].get('job_id'))
+                       new_list = line[2]
+                       if line[2].get('job_id'):
+                          dept_name = self.env['hr.job'].browse(line[2].get('job_id')).name
+                       else:
+                          dept_name = ''
+                       new_list['name'] = line[2].get('name') + ' ' + dept_name
+                       for key, val in new_dict.items():
+                           if key == account_id:
+                               credit = line[2].get('credit') + val.get('credit')
+                               debit = line[2].get('debit') + val.get('debit')
+                               new_list['credit'] = credit
+                               new_list['debit'] = debit
+                       new_dict.update({account_id: new_list})
+                   for data,item in new_dict.items():
+                       items.append((0, 0, item))
+                   line_ids = items
+
             for line in line_ids:
                 line[2].pop('department_id')
+                line[2].pop('job_id')
             if line_ids:
                 move_dict['line_ids'] = line_ids
                 move = self.env['account.move'].create(move_dict)
@@ -432,9 +477,9 @@ class ContabilidadNomina(models.Model):
 
     doc_id = fields.Many2one('hr.salary.rule', 'Cuentas contables')
     department_id = fields.Many2one('hr.department', string='Departmento')
-    account_credit = fields.Many2one('account.account', 'Cuenta contable', domain=[('deprecated', '=', False)])
+    account_credit = fields.Many2one('account.account', 'Cuenta contable', domain=[('active', '=', True)])
     employee_id = fields.Many2one('hr.employee', string='Empleado')
-#    account_analytic = fields.Many2one('account.analytic.account', 'Cuenta analítica')
+    job_id = fields.Many2one('hr.job', string='Trabajo')
     company_id = fields.Many2one('res.company', 'Company', default=lambda self: self.env.company)
 
 class ContabilidadNomina(models.Model):
@@ -444,7 +489,7 @@ class ContabilidadNomina(models.Model):
 
     doc_id = fields.Many2one('hr.salary.rule', 'Cuentas contables')
     department_id = fields.Many2one('hr.department', string='Departmento')
-    account_credit = fields.Many2one('account.account', 'Cuenta contable', domain=[('deprecated', '=', False)])
+    account_credit = fields.Many2one('account.account', 'Cuenta contable', domain=[('active', '=', True)])
     employee_id = fields.Many2one('hr.employee', string='Empleado')
-#    account_analytic = fields.Many2one('account.analytic.account', 'Cuenta analítica')
+    job_id = fields.Many2one('hr.job', string='Trabajo')
     company_id = fields.Many2one('res.company', 'Company', default=lambda self: self.env.company)

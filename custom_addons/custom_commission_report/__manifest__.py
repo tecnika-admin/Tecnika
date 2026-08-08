@@ -19,11 +19,12 @@
 
 
     'category': 'Accounting/Reporting',
-    'version': '18.0.1.0.0', # Versión del módulo
+    'version': '19.0.1.0.0',
 
     'depends': [
         'base',
-        'account', # Dependencia principal para modelos de contabilidad
+        'account',
+        'report_xlsx',
     ],
 
     'data': [

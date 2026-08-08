@@ -34,14 +34,14 @@ class IncidenciasNomina(models.Model):
                                       ('8','Rescisión de contrato'),
                                       ('9','Jubilación'),
                                       ('A', 'Pensión')], string='Tipo de baja')
-    contract_id = fields.Many2one('hr.contract', string='Contrato')
+    #contract_id = fields.Many2one('hr.version', string='Contrato')
     company_id = fields.Many2one('res.company', 'Company', required=True, index=True, default=lambda self: self.env.company)
     registro_patronal_ant = fields.Many2one('registro.patronal', string='Registro patronal anterior')
-    sueldo_mensual_ant = fields.Float('Sueldo mensual ant')
-    sueldo_diario_ant = fields.Float('Sueldo diario ant')
-    sueldo_diario_integrado_ant = fields.Float('Sueldo diario integrado ant')
-    sueldo_por_horas_ant = fields.Float("Sueldo por horas ant")
-    sueldo_cotizacion_base_ant = fields.Float('Sueldo cotización base ant')
+    #sueldo_mensual_ant = fields.Float('Sueldo mensual ant')
+    #sueldo_diario_ant = fields.Float('Sueldo diario ant')
+    #sueldo_diario_integrado_ant = fields.Float('Sueldo diario integrado ant')
+    #sueldo_por_horas_ant = fields.Float("Sueldo por horas ant")
+    #sueldo_cotizacion_base_ant = fields.Float('Sueldo cotización base ant')
     fecha_anterior = fields.Date('Fecha anterior')
 
     no_credito = fields.Char(string="Número de crédito INFONAVIT")
@@ -51,21 +51,13 @@ class IncidenciasNomina(models.Model):
                                           ('3', 'Veces SMGV'),],
                                             string='Tipo de descuento INFONAVIT')
     valor_descuento = fields.Float(string="Valor descuento", digits = (12,4))
-
-    @api.onchange('tipo_de_incidencia')
-    def _onchange_incidencia(self):
-        if self.tipo_de_incidencia == 'Reingreso':
-            return {'domain': {'employee_id': [('active', '=', False)]}}
-        else:
-            return {'domain': {'employee_id': [('active', '=', True)]}}
-
-    
+   
     @api.onchange('sueldo_mensual')
     def _compute_sueldo(self):
-        if self.sueldo_mensual and self.contract_id:
+        if self.sueldo_mensual and self.employee_id.tablas_cfdi_id:
             values = {
-            'sueldo_diario': self.sueldo_mensual/self.contract_id.tablas_cfdi_id.dias_mes,
-            'sueldo_por_horas': self.sueldo_mensual/self.contract_id.tablas_cfdi_id.dias_mes/8,
+            'sueldo_diario': self.sueldo_mensual/self.employee_id.tablas_cfdi_id.dias_mes,
+            'sueldo_por_horas': self.sueldo_mensual/self.employee_id.tablas_cfdi_id.dias_mes/8,
             'sueldo_diario_integrado': self.calculate_sueldo_diario_integrado(),
             'sueldo_cotizacion_base': self.calculate_sueldo_cotizacion_base(),
             }
@@ -73,24 +65,25 @@ class IncidenciasNomina(models.Model):
 
     @api.model
     def calculate_sueldo_cotizacion_base(self): 
-        if self.contract_id and self.contract_id.date_start:
+        if self.employee_id.date_start and self.employee_id.tablas_cfdi_id:
             if self.tipo_de_incidencia == 'Cambio salario':
-               date_start = self.contract_id.date_start
+               date_start = self.employee_id._get_first_version_date()
             else:
                date_start = fields.Date.from_string(self.fecha)
             today = datetime.today().date()
             diff_date = (today - date_start + timedelta(days=1)).days
             years = diff_date /365.0
-            #_logger.info('years ... %s', years)
-            tablas_cfdi = self.contract_id.tablas_cfdi_id 
+            tablas_cfdi = self.employee_id.tablas_cfdi_id 
             if not tablas_cfdi: 
                 tablas_cfdi = self.env['tablas.cfdi'].search([],limit=1)
             if not tablas_cfdi:
                 return 
             if years < 1.0: 
-                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad >= years).sorted(key=lambda x:x.antiguedad) 
-            else: 
-                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad <= years).sorted(key=lambda x:x.antiguedad, reverse=True) 
+                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad >= years).sorted(key=lambda x:x.antiguedad)
+            elif years < 6.0:
+                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad <= years).sorted(key=lambda x:x.antiguedad, reverse=True)
+            else:
+                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad >= years).sorted(key=lambda x:x.antiguedad, reverse=False)
             if not tablas_cfdi_lines: 
                 return 
             tablas_cfdi_line = tablas_cfdi_lines[0]
@@ -106,24 +99,27 @@ class IncidenciasNomina(models.Model):
 
     @api.model
     def calculate_sueldo_diario_integrado(self): 
-        if self.contract_id and self.contract_id.date_start: 
+        if self.employee_id.date_start and self.employee_id.tablas_cfdi_id:
             if self.tipo_de_incidencia == 'Cambio salario':
-               date_start = self.contract_id.date_start
+               date_start = self.employee_id._get_first_version_date()
             else:
                date_start = fields.Date.from_string(self.fecha)
+            if not date_start:
+               raise UserError("Debe ingresar una fecha primero.")
             today = datetime.today().date()
             diff_date = (today - date_start + timedelta(days=1)).days
             years = diff_date /365.0
-            #_logger.info('years ... %s', years)
-            tablas_cfdi = self.contract_id.tablas_cfdi_id 
+            tablas_cfdi = self.employee_id.tablas_cfdi_id 
             if not tablas_cfdi: 
                 tablas_cfdi = self.env['tablas.cfdi'].search([],limit=1) 
             if not tablas_cfdi:
                 return 
             if years < 1.0: 
-                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad >= years).sorted(key=lambda x:x.antiguedad) 
-            else: 
-                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad <= years).sorted(key=lambda x:x.antiguedad, reverse=True) 
+                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad >= years).sorted(key=lambda x:x.antiguedad)
+            elif years < 6.0:
+                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad <= years).sorted(key=lambda x:x.antiguedad, reverse=True)
+            else:
+                tablas_cfdi_lines = tablas_cfdi.tabla_antiguedades.filtered(lambda x: x.antiguedad >= years).sorted(key=lambda x:x.antiguedad, reverse=False)
             if not tablas_cfdi_lines: 
                 return 
             tablas_cfdi_line = tablas_cfdi_lines[0]
@@ -166,50 +162,31 @@ class IncidenciasNomina(models.Model):
                 self.registro_patronal_ant = employee.registro_patronal_id.id
                 employee.write({'registro_patronal_id':self.registro_patronal.id})
             elif self.tipo_de_incidencia=='Cambio salario':
-                if self.contract_id:
-                    self.sueldo_mensual_ant = self.contract_id.wage
-                    self.sueldo_diario_ant = self.contract_id.sueldo_diario
-                    self.sueldo_diario_integrado_ant = self.contract_id.sueldo_diario_integrado
-                    self.sueldo_por_horas_ant = self.contract_id.sueldo_hora
-                    self.sueldo_cotizacion_base_ant = self.contract_id.sueldo_base_cotizacion
-                    self.contract_id.write({'wage':self.sueldo_mensual,
-                                                    'sueldo_diario_integrado' : self.sueldo_diario_integrado,
-                                                    'sueldo_base_cotizacion' : self.sueldo_cotizacion_base,
-                                                    'sueldo_diario' : self.sueldo_diario,
-                                                    'sueldo_hora' : self.sueldo_por_horas
-                                                    })
-                    self.env['contract.historial.salario'].create({'sueldo_mensual': self.sueldo_mensual, 'sueldo_diario': self.sueldo_diario, 'fecha_sueldo': self.fecha,
-                                                                   'sueldo_por_hora' : self.sueldo_por_horas, 'sueldo_diario_integrado': self.sueldo_diario_integrado,
-                                                                   'sueldo_base_cotizacion': self.sueldo_cotizacion_base, 'contract_id' : self.contract_id.id
-                                                                   })
+                employee.write({'contract_date_end': self.fecha - timedelta(days=1)})
+                new_version = employee.create_contract(self.fecha)
+                new_version.write({'wage':self.sueldo_mensual,
+                                   'sueldo_diario_integrado' : self.sueldo_diario_integrado,
+                                   'sueldo_base_cotizacion' : self.sueldo_cotizacion_base,
+                                   'sueldo_diario' : self.sueldo_diario,
+                                   'sueldo_hora' : self.sueldo_por_horas,
+                                   'sueldo_hora' : self.sueldo_por_horas,
+                                   })
             elif self.tipo_de_incidencia=='Baja':
-                employee.write({'active':False})
-                if self.contract_id:
-                    self.contract_id.write({'state':'cancel'})
+                employee.write({'active':False, 'contract_date_end': self.fecha - timedelta(days=1)})
+                #if self.contract_id:
+                #    self.contract_id.write({'state':'cancel'})
             elif self.tipo_de_incidencia=='Reingreso':
                 employee.write({'active':True, 'registro_patronal_id': self.registro_patronal.id})
-                if self.contract_id:
-                    self.sueldo_mensual_ant = self.contract_id.wage
-                    self.sueldo_diario_ant = self.contract_id.sueldo_diario
-                    self.sueldo_diario_integrado_ant = self.contract_id.sueldo_diario_integrado
-                    self.sueldo_por_horas_ant = self.contract_id.sueldo_hora
-                    self.sueldo_cotizacion_base_ant = self.contract_id.sueldo_base_cotizacion
-                    self.fecha_anterior = self.fecha
-                    self.contract_id.write({'state':'open',
-                                                 'sueldo_diario' : self.sueldo_diario,
-                                                 'wage' : self.sueldo_mensual,
-                                                 'sueldo_diario_integrado' : self.sueldo_diario_integrado,
-                                                 'sueldo_base_cotizacion' : self.sueldo_cotizacion_base,
-                                                 'sueldo_hora': self.sueldo_por_horas,
-                                                 'date_start': self.fecha,
-                                                 })
-                    self.env['contract.historial.salario'].create({'sueldo_mensual': self.sueldo_mensual, 'sueldo_diario': self.sueldo_diario, 'fecha_sueldo': self.fecha,
-                                                                   'sueldo_por_hora' : self.sueldo_por_horas, 'sueldo_diario_integrado': self.sueldo_diario_integrado,
-                                                                   'sueldo_base_cotizacion': self.sueldo_cotizacion_base, 'contract_id' : self.contract_id.id
-                                                                   })
+                new_version = employee.create_contract(self.fecha)
+                new_version.write({'wage':self.sueldo_mensual,
+                                   'sueldo_diario_integrado' : self.sueldo_diario_integrado,
+                                   'sueldo_base_cotizacion' : self.sueldo_cotizacion_base,
+                                   'sueldo_diario' : self.sueldo_diario,
+                                   'sueldo_hora' : self.sueldo_por_horas,
+                                   'sueldo_hora' : self.sueldo_por_horas,
+                                   })
         self.write({'state':'done'})
         return
-
     
     def action_cancelar(self):
        employee = self.employee_id
@@ -217,35 +194,19 @@ class IncidenciasNomina(models.Model):
          self.write({'state':'cancel'})
        else:
           if self.tipo_de_incidencia == 'Reingreso':
-              historial = self.env['contract.historial.salario'].search([('fecha_sueldo', '=', self.fecha)], limit=1)
-              historial.unlink()
+              version = self.env['hr.version'].search([('contract_date_start', '=', self.fecha), ('employee_id', '=', employee.id)], limit=1)
+              version.write({'active': False})
               employee.write({'active':False})
-              if self.contract_id:
-                  self.contract_id.write({'state':'cancel',
-                                          'sueldo_diario' : self.sueldo_diario_ant,
-                                          'wage' : self.sueldo_mensual_ant,
-                                          'sueldo_diario_integrado' : self.sueldo_diario_integrado_ant,
-                                          'sueldo_base_cotizacion' : self.sueldo_cotizacion_base_ant,
-                                          'sueldo_hora': self.sueldo_por_horas_ant,
-                                          'date_start': self.fecha_anterior,
-                                          })
           elif self.tipo_de_incidencia == 'Baja':
-              employee.write({'active':True})
-              if self.contract_id:
-                  self.contract_id.write({'state':'open'})
+              employee.write({'active':True, 'contract_date_end': None})
+              #if self.contract_id:
+              #    self.contract_id.write({'state':'open'})
           elif self.tipo_de_incidencia == 'Cambio reg. patronal':
               employee.write({'registro_patronal_id': self.registro_patronal_ant.id})
           elif self.tipo_de_incidencia == 'Cambio salario':
-              if self.contract_id:
-                 self.contract_id.write({
-                                         'sueldo_diario' : self.sueldo_diario_ant,
-                                         'wage' : self.sueldo_mensual_ant,
-                                         'sueldo_diario_integrado' : self.sueldo_diario_integrado_ant,
-                                         'sueldo_base_cotizacion' : self.sueldo_cotizacion_base_ant,
-                                         'sueldo_hora': self.sueldo_por_horas_ant,
-                                         })
-                 historial = self.env['contract.historial.salario'].search([('fecha_sueldo', '=', self.fecha)], limit=1)
-                 historial.unlink()
+              version = self.env['hr.version'].search([('contract_date_start', '=', self.fecha), ('employee_id', '=', employee.id)], limit=1)
+              version.write({'active': False})
+              employee.write({'contract_date_end': None})
           self.write({'state':'cancel'})
 
     def action_draft(self):

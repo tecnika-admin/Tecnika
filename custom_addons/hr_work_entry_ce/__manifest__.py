@@ -4,7 +4,7 @@
     'name': 'HR Work Entries Community',
     'category': 'Generic Modules/Human Resources',
     'author': 'IT Admin',
-    'version': '18.01',
+    'version': '19.01',
     'sequence': 1,
     'website': 'https://www.itadmin.com.mx',
     'summary': 'Funcionalidades para menus de work entries.',
@@ -14,7 +14,7 @@
     ],
     'data': [
         'data/hr_payroll_data.xml',
-        'views/hr_work_entry_menu.xml',
+     #   'views/hr_work_entry_menu.xml',
     ],
     'application': True,
 }
