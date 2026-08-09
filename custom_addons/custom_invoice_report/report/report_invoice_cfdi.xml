@@ -11,6 +11,15 @@
         </xpath>
     </template>
 
+    <!-- El upgrade 18->19 desactiva las vistas heredadas de módulos custom, y
+         el atributo active="True" de <template> SOLO se aplica al instalar,
+         nunca al actualizar (odoo/tools/convert.py, _tag_template). Sin esto la
+         vista queda active=false para siempre y la factura sale con el diseño
+         nativo de l10n_mx_edi. Un <record> normal sí se escribe en cada -u. -->
+    <record id="report_invoice_document_cfdi_inherit" model="ir.ui.view">
+        <field name="active" eval="True"/>
+    </record>
+
     <!-- Cuerpo del CFDI. Autocontenido: no usa el external_layout de Odoo. -->
     <template id="report_invoice_cfdi">
         <t t-set="company" t-value="o.company_id"/>
