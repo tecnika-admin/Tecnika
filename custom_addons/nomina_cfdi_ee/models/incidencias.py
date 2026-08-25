@@ -172,7 +172,7 @@ class IncidenciasNomina(models.Model):
                                    'sueldo_hora' : self.sueldo_por_horas,
                                    })
             elif self.tipo_de_incidencia=='Baja':
-                employee.write({'active':False, 'contract_date_end': self.fecha - timedelta(days=1)})
+                employee.write({'active':False, 'contract_date_end': self.fecha})
                 #if self.contract_id:
                 #    self.contract_id.write({'state':'cancel'})
             elif self.tipo_de_incidencia=='Reingreso':

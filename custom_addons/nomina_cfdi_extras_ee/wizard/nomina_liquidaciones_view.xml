@@ -8,7 +8,7 @@
             <field name="arch" type="xml">
                 <form>
                     <group>
-                        <field name="employee_id" required="1"/>
+                        <field name="employee_id" required="1" domain="['|', ('active', '=', True), ('active', '=', False)]"/>
                     </group>
                     <footer>
                         <button name="generate_liquidaciones_report" string="Generar" type="object" class="oe_highlight"/>

@@ -68,6 +68,9 @@
 		        <t t-set="total_deducciones" t-value="0.0"/>
 		        <t t-set="total_otros_pagos" t-value="0.0"/>
 		        <t t-set="total_neto_pagar" t-value="0.0"/>
+            <t t-set="horas_dobles" t-value="0.0"/>
+            <t t-set="horas_triples" t-value="0.0"/>
+            <t t-set="dias_work" t-value="0.0"/>
 
 	            <h2 style="margin:0px;padding:0px;height:10px;">Recibo de nómina</h2>
 				
@@ -130,28 +133,39 @@
 						</t>
 					</t>
 					
-					<t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='WORK100')" />
-		            <t t-if="len(worked_days)>0">
-		                 <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
-		            </t>
-		            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='FJC')" />
-		            <t t-if="len(worked_days)>0">
-		                 <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
-		            </t>
-		            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='SEPT')" />
-		            <t t-if="len(worked_days)>0">
-		                 <t t-set="septimo_dia" t-value="worked_days[0].number_of_days"/>
-		                 <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
-		            </t>
-		            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='VAC')" />
-		            <t t-if="len(worked_days)>0">
-		                 <t t-set="dias_vacaiones" t-value="worked_days[0].number_of_days"/>
-		            </t>
-		            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='PDM')" />
-		            <t t-if="len(worked_days)>0">
-		                 <t t-set="prima_dominical" t-value="worked_days[0].number_of_days"/>
-		            </t>
-		        </t>
+	        <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='WORK100')" />
+	            <t t-if="len(worked_days)>0">
+                   <t t-set="dias_work" t-value="dias_work + worked_days[0].number_of_days"/>
+	                 <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
+	            </t>
+	            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='FJC')" />
+	            <t t-if="len(worked_days)>0">
+                   <t t-set="dias_work" t-value="dias_work + worked_days[0].number_of_days"/>
+	                 <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
+	            </t>
+	            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='SEPT')" />
+	            <t t-if="len(worked_days)>0">
+	                 <t t-set="septimo_dia" t-value="worked_days[0].number_of_days"/>
+	                 <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
+	            </t>
+	            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='VAC')" />
+	            <t t-if="len(worked_days)>0">
+	                 <t t-set="dias_vacaiones" t-value="worked_days[0].number_of_days"/>
+                   <t t-set="dias_trabajados" t-value="dias_trabajados + worked_days[0].number_of_days"/>
+	            </t>
+	            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='PDM')" />
+	            <t t-if="len(worked_days)>0">
+	                 <t t-set="prima_dominical" t-value="worked_days[0].number_of_days"/>
+	            </t>
+	            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='HEX2')" />
+	            <t t-if="len(worked_days)>0">
+	                 <t t-set="horas_dobles" t-value="worked_days[0].number_of_hours"/>
+	            </t>
+	            <t t-set="worked_days" t-value="doc.worked_days_line_ids.filtered(lambda x:x.code=='HEX3')" />
+	            <t t-if="len(worked_days)>0">
+	                 <t t-set="horas_triples" t-value="worked_days[0].number_of_hours"/>
+	            </t>
+	        </t>
 		        
 	            <div class="row mt32 mb32" style="padding-top: 1px;" >
 	            	<div class="col-6 mt32 mb32" style="font-size:12px;padding-right: 0px;">
@@ -178,18 +192,24 @@
 		                                <td height="0" class="text-right"> <span t-if="docs" t-esc="line.total"
 		                                          t-options='{"widget": "monetary", "display_currency": docs[0].company_id.currency_id}'/></td>
 		                                <td height="0" class="text-right">
-		                                    <t t-if= "line.code == 'P001'">
-		                                       <span t-esc="'%.2f'% dias_trabajados"/>
-		                                    </t>
-		                                    <t t-if= "line.code == 'P019'"> 
-		                                       <span t-esc="'%.2f'% dias_vacaiones"/>
-		                                    </t>
-		                                    <t t-if= "line.code == 'P010'"> 
-		                                       <span t-esc="'%.2f'% prima_dominical"/>
-		                                    </t>
-		                                    <t t-if= "line.code == 'P003'">
-		                                       <span t-esc="'%.2f'% septimo_dia"/>
-		                                    </t>
+                        	            <t t-if= "line.code == 'P001'"><!-- días trabajados -->
+                          	             <span t-esc="'%.2f'% dias_work"/>
+                            	        </t>
+                              	      <t t-if= "line.code == 'P009'"> <!-- vacaciones -->
+                                	       <span t-esc="'%.2f'% dias_vacaiones"/>
+                                  	  </t>
+	                                    <t t-if= "line.code == 'P019'"> <!-- prima dominical -->
+  	                                     <span t-esc="'%.2f'% prima_dominical"/>
+    	                                </t>
+      	                              <t t-if= "line.code == 'P003'"><!-- septimo día-->
+        	                               <span t-esc="'%.2f'% septimo_dia"/>
+          	                          </t>
+            	                        <t t-if= "line.code == 'HEX2'"><!-- hrs extras dobles-->
+                                       <span t-esc="'%.2f'% horas_dobles"/>
+              	                      </t>
+                	                    <t t-if= "line.code == 'HEX3'"><!-- hrs extras triples-->
+                  	                     <span t-esc="'%.2f'% horas_triples"/>
+                    	                </t>
 		                                </td>
 		                              </t>
 		                            </tr>
@@ -225,7 +245,7 @@
 	                </div>
 	            </div>
 
-		        <t t-if="docs and docs[0].company_id.modo_prueba == True">
+		        <t t-if="docs and docs[0].compania_padre.l10n_mx_edi_pac_test_env == True">
 		        	<div style="position:absolute;opacity:0.2;z-index:-1;width:100%;text-align:center;margin:auto;">
 		        		<center><span style="font-size:100px;color:rgba(255, 0, 0, 0.2);">NÓMINA DE PRUEBA</span></center>
 		        	</div>
@@ -334,21 +354,21 @@
                 <br/><br/>
 	            <div style="font-size:12px;">
 
-                   RECIBÍ DE <span t-if="docs" t-field="docs[0].company_id.name" /> 
+                   RECIBÍ DE <span t-if="docs" t-field="docs[0].company_id.name" style="text-transform: uppercase;"/> 
                    LA CANTIDAD DE: <span t-esc="total_neto_pagar" t-options='{"widget": "monetary", "display_currency": docs[0].company_id.currency_id}'/>
                    (<span t-esc="docs[0].monto_a_texto(total_neto_pagar)" />) POR CONCEPTO DE MI FINIQUITO, CON MOTIVO DE LA TERMINACIÓN DE MI RELACIÓN
                    LABORAL CON LA EMPRESA CON FECHA <span t-if="docs" t-esc="docs[0].fecha_pago.strftime('%d DE %B DEL %Y')"/>.<br/><br/>
 
-                   MANIFIESTO QUE DURANTE MI ESTANCIA EN <span t-if="docs" t-field="docs[0].company_id.name" />
+                   MANIFIESTO QUE DURANTE MI ESTANCIA EN <span t-if="docs" t-field="docs[0].company_id.name" style="text-transform: uppercase;"/>
                    Y HASTA LA FECHA, FUI PAGADO POR USTEDES DE TODOS MIS SALARIOS 
                    ORDINARIOS Y EXTRAORDINARIOS, SÉPTIMOS DÍAS, DESCANOS OBLIGATORIOS, TIEMPO EXTRAORDINARIO, AGUINALDOS, VACACIONES, PRIMAS VACACIONALES, REPARTO DE UTILIDADES, 
                    PRIMA DE ANTIGÜEDAD, FONDO DE AHORRO, ASÍ COMO DE TODAS LAS PRESTACIOENS A QUE TENGO DERECHO, DE ACUERDO A LO ESTABLECIDO EN EL CONTRATO INDIVIDUAL DE TRABAJO 
                    Y A LA LEY FEDERAL DE TRABAJO EN VIGOR. <br/><br/>
 
                    ASÍ MISMO, HAGO CONSTAR QUE DURANTE TODO EL TIEMPO QUE LABORÉ CON USTEDES, NO SUFRÍ ACCIDENTE O ENFERMEDAD PROFESIONAL ALGUNA. POR LO QUE OTROGO UN FINIQUITO 
-                   TOTAL DE OBLIGACIONES A <span t-if="docs" t-field="docs[0].company_id.name" /> Y NO ME RESERVO ACCIÓN O DERECHO ALGUNO QUE EJERCER EN SU CONTRA,
+                   TOTAL DE OBLIGACIONES A <span t-if="docs" t-field="docs[0].company_id.name" style="text-transform: uppercase;"/> Y NO ME RESERVO ACCIÓN O DERECHO ALGUNO QUE EJERCER EN SU CONTRA,
                    CONSECUENTEMENTE DOY POR TERMINADA LA RELACIÓN LABORAL QUE ME 
-                   UNIÓ A <span t-if="docs" t-field="docs[0].company_id.name" />, EN LOS TÉRMINOS QUE MARCA EL ART. 53 FRACC I DE LA LEY FEDERAL DEL TRABAJO. <br/> <br/>
+                   UNIÓ A <span t-if="docs" t-field="docs[0].company_id.name" style="text-transform: uppercase;"/>, EN LOS TÉRMINOS QUE MARCA EL ART. 53 FRACC I DE LA LEY FEDERAL DEL TRABAJO. <br/> <br/>
                 </div>
 
 	        	<table  width="100%"  style="font-size:12px;">

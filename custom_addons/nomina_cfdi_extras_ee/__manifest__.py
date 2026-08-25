@@ -7,7 +7,7 @@
 This new module will create 2 new models: incidencias and incapacidades, they will have a tree view and will be located on Employees view. For both create sequential numbers for each register. Will have only 2 states: draft and done.
     ''',
     'author': 'IT Admin',
-    'version': '19.1.2',
+    'version': '19.1.4',
     'category': 'Employees',
     'depends': [
         'web',
