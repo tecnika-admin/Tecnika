@@ -167,7 +167,7 @@
                     <nomina12:Incapacidad
                         t-att-DiasIncapacidad="incapacidad['DiasIncapacidad']"
                         t-att-TipoIncapacidad="incapacidad['TipoIncapacidad']"
-                        t-att-ImporteMonetario="incapacidad['ImporteMonetario']"/>
+                        t-att-ImporteMonetario="incapacidad['ImporteMonetario'] or '0'"/>
                 </t>
             </nomina12:Incapacidades>
         </nomina12:Nomina>
