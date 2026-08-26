@@ -1279,11 +1279,12 @@ class HrPayslip(models.Model):
                        for desc_line in desc_incapacidad:
                           if desc_line.salary_rule_id.tipo_cdeduccion.clave == '006':
                               importe_monetario += desc_line.total
-                    lineas_incapacidad.append({
+                    if importe_monetario > 0:
+                        lineas_incapacidad.append({
                              'DiasIncapacidad': int(ext_line.number_of_days),
                              'TipoIncapacidad': tipo_inc,
                              'ImporteMonetario': importe_monetario,
-                    })
+                        })
             if lineas_incapacidad:
                request_params.update({'Incapacidades': lineas_incapacidad})
 
@@ -1594,28 +1595,35 @@ class HrPayslip(models.Model):
                      ('res_model', '=', payslip._name),
                      ('name', '=', payslip.number.replace('/','_') + '.xml')]
                 xml_file = payslip.env['ir.attachment'].search(domain,limit=1)
+                edi_document_id = self.env['l10n_mx_edi.document'].sudo().create(
+                                            {
+                                                'datetime': datetime.datetime.now(),
+                                                'state': 'invoice_cancel',
+                                                'attachment_id': xml_file.id,
+                                            })
+
                 if not xml_file:
                     raise UserError(_('No se encontró el archivo XML para enviar a cancelar.'))
 
-                cfdi_values = self.env['l10n_mx_edi.document']._get_company_cfdi_values(payslip.company_id)
+                cfdi_values = edi_document_id._get_company_cfdi_values(payslip.company_id)
                 if cfdi_values.get('errors'):
                     raise UserError(_("\n".join(cfdi_values['errors'])))
 
                 root_company = cfdi_values['root_company']
 
-                self.env['l10n_mx_edi.document']._add_certificate_cfdi_values(cfdi_values)
+                edi_document_id._add_certificate_cfdi_values(cfdi_values)
                 if cfdi_values.get('errors'):
                     raise UserError(_("\n".join(cfdi_values['errors'])))
 
                 # == Check credentials ==
                 pac_name = root_company.l10n_mx_edi_pac
-                credentials = self.env['l10n_mx_edi.document']._get_pac_method_map()['credentials'][pac_name](root_company)
+                credentials = edi_document_id._get_pac_method_map()['credentials'][pac_name](root_company)
                 if credentials.get('errors'):
                     raise UserError(_("\n".join(credentials['errors'])))
 
                 # == Check PAC ==
                 cancel_uuid = payslip.env.context.get('foliosustitucion','')
-                cancel_results = self.env['l10n_mx_edi.document']._get_pac_method_map()['cancel'][pac_name](
+                cancel_results = edi_document_id._get_pac_method_map()['cancel'][pac_name](
                     cfdi_values,
                     credentials,
                     payslip.folio_fiscal,
