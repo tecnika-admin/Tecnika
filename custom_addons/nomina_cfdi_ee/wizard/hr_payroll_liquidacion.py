@@ -257,11 +257,12 @@ class GeneraLiquidaciones(models.TransientModel):
             #Dias de aguinaldo
             payslip_obj = self.env['hr.payslip']
             year_date_start = self.employee_id._get_first_version_date().year
-            if year_date_start < self.fecha_liquidacion.year:
-                inicio_ano = date(self.fecha_liquidacion.year, 1, 1)
-                payslip_onchange_vals = payslip_obj.onchange_employee_id(inicio_ano, self.fecha_liquidacion, employee_id=self.employee_id.id)
-            else:
-                payslip_onchange_vals = payslip_obj.onchange_employee_id(self.employee_id._get_first_version_date(), self.fecha_liquidacion, employee_id=self.employee_id.id)
+            #if year_date_start < self.fecha_liquidacion.year:
+            #    inicio_ano = date(self.fecha_liquidacion.year, 1, 1)
+            #    payslip_onchange_vals = payslip_obj.onchange_employee_id(inicio_ano, self.fecha_liquidacion, employee_id=self.employee_id.id)
+            #else:
+            #    payslip_onchange_vals = payslip_obj.onchange_employee_id(self.employee_id._get_first_version_date(), self.fecha_liquidacion, employee_id=self.employee_id.id)
+            payslip_onchange_vals = payslip_obj.onchange_employee_id(self.fecha_inicio, self.fecha_liquidacion, employee_id=self.employee_id.id)
             #Creación de nomina ordinaria
             payslip_vals = {**payslip_onchange_vals.get('value',{})} #TO copy dict to new dict. 
             contract_id = self.contract_id.id
@@ -276,16 +277,18 @@ class GeneraLiquidaciones(models.TransientModel):
 
             #dias pendientes a pagar en ultima nomina
             compute_days = payslip_vals.get('worked_days_line_ids')
+            #_logger.info('compute_days %s --- ', compute_days)
             for lines in compute_days:
-                 if lines['code'] != 'WORK100' and lines['code'] != 'DFES' and lines['code'] != 'DFES_3' and lines['code'] != 'SEPT':
-                     self.dias_pendientes_pagar -= lines['number_of_days']
-                     if self.dias_pendientes_pagar < 0:
+                #_logger.info('lineas %s', lines)
+                if lines['code'] != 'WORK100' and lines['code'] != 'DFES' and lines['code'] != 'DFES_3' and lines['code'] != 'SEPT':
+                    self.dias_pendientes_pagar -= lines['number_of_days']
+                    if self.dias_pendientes_pagar < 0:
                         self.dias_pendientes_pagar = 0
 
             worked_days = [(0, 0, x) for x in payslip_vals.get('worked_days_line_ids')]
             self.dias_aguinaldo = 0
             dias_faltas = 0
-#            _logger.info('worked_days %s --- ', worked_days)
+            #_logger.info('worked_days %s --- ', worked_days)
             for lines in worked_days:
                #_logger.info('lineas %s', lines[2])
                if lines[2]['code'] == 'FI' or lines[2]['code'] == 'FJS' or lines[2]['code'] == 'FR':

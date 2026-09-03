@@ -11,7 +11,7 @@
     Nomina CFDI Module
     ''',
     'author': 'IT Admin',
-    'version': '19.1.10',
+    'version': '19.1.11',
     'category': 'Employees',
     'depends': [
         'om_hr_payroll','account', 'hr_work_entry_holidays', 'hr_work_entry_attendance', 'hr_work_entry_enterprise'
