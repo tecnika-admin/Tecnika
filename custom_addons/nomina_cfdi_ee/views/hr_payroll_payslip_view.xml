@@ -32,6 +32,9 @@
                                 <field name="tipo_relacion" readonly="estado_factura != 'factura_no_generada'"/>
                                 <field name="uuid_relacionado" readonly="estado_factura != 'factura_no_generada'"/>
                             </group>
+                            <group string="Compañia padre">
+                                <field name="compania_padre"/>
+                            </group>
                         </group>
                 </page>
                 <page name="info_aditional" string="Información adicional" invisible="company_cfdi != True">
