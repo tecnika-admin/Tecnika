@@ -82,7 +82,7 @@
             <t t-if="Percepciones">
                 <t t-set="totales" t-value="Percepciones['Totales']"/>
                 <nomina12:Percepciones t-if="Percepciones"
-                    t-att-TotalSueldos="totales['TotalSueldos'] or '0'"
+                    t-att-TotalSueldos="totales['TotalSueldos']"
                     t-att-TotalGravado="totales['TotalGravado'] or '0'"
                     t-att-TotalExento="totales['TotalExento'] or '0'"
                     t-att-TotalSeparacionIndemnizacion="totales['TotalSeparacionIndemnizacion']"
@@ -110,8 +110,8 @@
                         <nomina12:JubilacionPensionRetiro
                                 t-att-TotalParcialidad="jubilacion['TotalParcialidad']"
                                 t-att-MontoDiario="jubilacion['MontoDiario']"
-                                t-att-IngresoAcumulable="jubilacion['IngresoAcumulable']"
-                                t-att-IngresoNoAcumulable="jubilacion['IngresoNoAcumulable']"/>
+                                t-att-IngresoAcumulable="jubilacion['IngresoAcumulable'] or '0'"
+                                t-att-IngresoNoAcumulable="jubilacion['IngresoNoAcumulable'] or '0'"/>
                     </t>
                     <t t-if="'SeparacionIndemnizacion' in Percepciones">
                         <t t-set="separacion" t-value="Percepciones['SeparacionIndemnizacion']"/>
@@ -119,7 +119,7 @@
                                 t-att-TotalPagado="separacion['TotalPagado']"
                                 t-att-NumAñosServicio="separacion['NumAnosServicio'] or '0'"
                                 t-att-UltimoSueldoMensOrd="separacion['UltimoSueldoMensOrd']"
-                                t-att-IngresoAcumulable="separacion['IngresoAcumulable']"
+                                t-att-IngresoAcumulable="separacion['IngresoAcumulable'] or '0'"
                                 t-att-IngresoNoAcumulable="separacion['IngresoNoAcumulable'] or '0'"/>
                     </t>
                 </nomina12:Percepciones>
