@@ -21,6 +21,175 @@
     </record>
 
     <!-- Cuerpo del CFDI. Autocontenido: no usa el external_layout de Odoo. -->
+    <!-- ================================================================== -->
+    <!--  Bloques compartidos por la factura CFDI y la cotización.          -->
+    <!--  Cada reporte define las variables del contrato antes del t-call.  -->
+    <!-- ================================================================== -->
+
+    <!-- Contrato: logo_src -->
+    <template id="tecnika_doc_header">
+        <table class="cfdi-header">
+            <tr>
+                <td class="cfdi-header-logo">
+                    <img class="brand-logo"
+                        t-att-src="logo_src" alt="Tecnika"/>
+                </td>
+                <td class="cfdi-header-branches">
+                    <table class="branches">
+                        <tr>
+                            <td>
+                                <div class="branch-title">Los Mochis</div>
+                                <div>Rosendo Castro No. 599, Local 1</div>
+                                <div>Col. Centro C.P. 81200</div>
+                                <div>Los Mochis, Sinaloa</div>
+                                <div>Tel. (668) 818 8050</div>
+                            </td>
+                            <td>
+                                <div class="branch-title">Mazatlán</div>
+                                <div>Marina No. 6116 - 13C</div>
+                                <div>Col. Marina C.P. 82013</div>
+                                <div>Mazatlán, Sinaloa</div>
+                                <div>Tel. (669) 930 0200</div>
+                            </td>
+                            <td>
+                                <div class="branch-title">Tijuana</div>
+                                <div>Fray Servando Teresa de</div>
+                                <div>Mier 1351, Zona Urbana</div>
+                                <div>Río TJ. C.P. 22010</div>
+                                <div>Tijuana, Baja California</div>
+                                <div>Tel. (667) 712 4444</div>
+                            </td>
+                            <td>
+                                <div class="branch-title">CDMX</div>
+                                <div>Gral. Pedro Antonio de los</div>
+                                <div>Santos No. 96 - Int. 1200</div>
+                                <div>San Miguel Chapultepec</div>
+                                <div>CDMX C.P. 11850</div>
+                                <div>Tel. (55) 6650 8840</div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </template>
+
+    <!-- Contrato: company, partner, customer_rfc. Emite las dos celdas. -->
+    <template id="tecnika_doc_parties">
+        <td class="issuer-cell">
+            <table class="rounded-box issuer-box">
+                <tr>
+                    <td class="box-pad">
+                        <span class="legend">Emisor</span>
+                        <div class="box-value party-box-value">
+                            <div class="party-name upper"><t t-out="company.name"/></div>
+                            <div class="party-address">
+                                <div class="party-rfc">
+                                    RFC: <t t-out="company.vat or ''"/>
+                                </div>
+                                <div class="b">Domicilio:</div>
+                                <div>
+                                    <t t-out="company.street or ''"/>
+                                    <t t-if="company.street2"> <t t-out="company.street2"/></t>
+                                </div>
+                                <div>
+                                    <t t-out="company.zip or ''"/>
+                                    <t t-out="(' ' + company.city) if company.city else ''"/>,
+                                    <t t-out="company.state_id.name or ''"/>
+                                </div>
+                                <div><t t-out="company.country_id.name or ''"/></div>
+                                <div t-if="company.l10n_mx_edi_fiscal_regime">
+                                    Régimen: <span t-field="company.l10n_mx_edi_fiscal_regime"/>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <td class="customer-cell">
+            <table class="rounded-box customer-box">
+                <tr>
+                    <td class="box-pad">
+                        <span class="legend">Receptor</span>
+                        <div class="box-value party-box-value">
+                            <div class="party-name upper"><t t-out="partner.name or ''"/></div>
+                            <div class="party-address">
+                                <div class="party-rfc">
+                                    RFC: <t t-out="customer_rfc"/>
+                                </div>
+                                <div class="b">Domicilio:</div>
+                                <div>
+                                    <t t-out="partner.street or ''"/>
+                                    <t t-if="partner.street2"> <t t-out="partner.street2"/></t>
+                                </div>
+                                <div>
+                                    <t t-out="partner.zip or ''"/>
+                                    <t t-out="(' ' + partner.city) if partner.city else ''"/>,
+                                    <t t-out="partner.state_id.name or ''"/>
+                                    <t t-out="(', ' + partner.country_id.name) if partner.country_id else ''"/>
+                                </div>
+                                <div t-if="partner.l10n_mx_edi_fiscal_regime">
+                                    Régimen: <span t-field="partner.l10n_mx_edi_fiscal_regime"/>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </template>
+
+    <!-- Contrato: vendor_name, amount_words, cur, doc_untaxed, taxes,
+         currency_name, doc_total -->
+    <template id="tecnika_doc_totals">
+        <table class="vendor-totals">
+            <tr>
+                <td class="vt-left">
+                    <table class="mini-grid">
+                        <tr>
+                            <td>
+                                <span class="mini-title">Vendedor</span>
+                                <t t-out="vendor_name"/>
+                            </td>
+                        </tr>
+                    </table>
+                    <div class="amount-words">
+                        <span class="b">Importe en letras:</span>
+                        <t t-out="amount_words"/>
+                    </div>
+                </td>
+                <td class="vt-right">
+                    <table class="totals">
+                        <tr>
+                            <td class="lbl">SUBTOTAL:</td>
+                            <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(doc_untaxed)"/></td>
+                        </tr>
+                        <tr>
+                            <td class="lbl">I.V.A.:</td>
+                            <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(taxes['traslado'])"/></td>
+                        </tr>
+                        <tr>
+                            <td class="lbl">RETENCIÓN I.V.A.:</td>
+                            <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(taxes['retenido'])"/></td>
+                        </tr>
+                        <tr class="grand">
+                            <td class="lbl">Divisa:</td>
+                            <td class="tr"><t t-out="currency_name"/>
+                            </td>
+                        </tr>
+                        <tr class="grand">
+                            <td class="lbl">Total:</td>
+                            <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(doc_total)"/></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </template>
+
     <template id="report_invoice_cfdi">
         <t t-set="company" t-value="o.company_id"/>
         <t t-set="partner" t-value="o.partner_id"/>
@@ -28,7 +197,16 @@
         <t t-set="cfdi" t-value="rdata['cfdi']"/>
         <t t-set="taxes" t-value="rdata['taxes']"/>
         <t t-set="cur" t-value="o.currency_id.symbol or '$'"/>
-        <t t-set="rows" t-value="o._cfdi_report_lines()"/>
+        <t t-set="rows" t-value="o._tecnika_report_lines()"/>
+
+        <!-- Contrato de las subplantillas compartidas con la cotización. -->
+        <t t-set="logo_src" t-value="rdata['logo_src']"/>
+        <t t-set="customer_rfc" t-value="o.l10n_mx_edi_cfdi_customer_rfc or partner.vat or ''"/>
+        <t t-set="vendor_name" t-value="o.invoice_user_id.name or ''"/>
+        <t t-set="amount_words" t-value="rdata['amount_words']"/>
+        <t t-set="doc_untaxed" t-value="o.amount_untaxed"/>
+        <t t-set="doc_total" t-value="o.amount_total"/>
+        <t t-set="currency_name" t-value="o.currency_id.name"/>
 
         <div class="article" t-att-data-oe-model="o and o._name"
              t-att-data-oe-id="o and o.id"
@@ -40,118 +218,12 @@
                 </div>
 
                 <!-- Encabezado abierto, sin caja exterior, como el formato muestra. -->
-                <table class="cfdi-header">
-                    <tr>
-                        <td class="cfdi-header-logo">
-                            <img class="brand-logo"
-                                t-att-src="rdata['logo_src']" alt="Tecnika"/>
-                        </td>
-                        <td class="cfdi-header-branches">
-                            <table class="branches">
-                                <tr>
-                                    <td>
-                                        <div class="branch-title">Los Mochis</div>
-                                        <div>Rosendo Castro No. 599, Local 1</div>
-                                        <div>Col. Centro C.P. 81200</div>
-                                        <div>Los Mochis, Sinaloa</div>
-                                        <div>Tel. (668) 818 8050</div>
-                                    </td>
-                                    <td>
-                                        <div class="branch-title">Mazatlán</div>
-                                        <div>Marina No. 6116 - 13C</div>
-                                        <div>Col. Marina C.P. 82013</div>
-                                        <div>Mazatlán, Sinaloa</div>
-                                        <div>Tel. (669) 930 0200</div>
-                                    </td>
-                                    <td>
-                                        <div class="branch-title">Tijuana</div>
-                                        <div>Fray Servando Teresa de</div>
-                                        <div>Mier 1351, Zona Urbana</div>
-                                        <div>Río TJ. C.P. 22010</div>
-                                        <div>Tijuana, Baja California</div>
-                                        <div>Tel. (667) 712 4444</div>
-                                    </td>
-                                    <td>
-                                        <div class="branch-title">CDMX</div>
-                                        <div>Gral. Pedro Antonio de los</div>
-                                        <div>Santos No. 96 - Int. 200</div>
-                                        <div>San Miguel Chapultepec</div>
-                                        <div>CDMX C.P. 11850</div>
-                                        <div>Tel. (55) 6650 8840</div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
+                <t t-call="custom_invoice_report.tecnika_doc_header"/>
 
                 <!-- Vendido a + Factura. Se conservan los mismos bloques existentes. -->
                 <table class="customer-invoice-row">
                     <tr>
-                        <td class="issuer-cell">
-                            <table class="rounded-box issuer-box">
-                                <tr>
-                                    <td class="box-pad">
-                                        <span class="legend">Emisor</span>
-                                        <div class="box-value party-box-value">
-                                            <div class="party-name upper"><t t-out="company.name"/></div>
-                                            <div class="party-address">
-                                                <div class="party-rfc">
-                                                    RFC: <t t-out="company.vat or ''"/>
-                                                </div>
-                                                <div class="b">Domicilio:</div>
-                                                <div>
-                                                    <t t-out="company.street or ''"/>
-                                                    <t t-if="company.street2"> <t t-out="company.street2"/></t>
-                                                </div>
-                                                <div>
-                                                    <t t-out="company.zip or ''"/>
-                                                    <t t-out="(' ' + company.city) if company.city else ''"/>,
-                                                    <t t-out="company.state_id.name or ''"/>
-                                                </div>
-                                                <div><t t-out="company.country_id.name or ''"/></div>
-                                                <div t-if="company.l10n_mx_edi_fiscal_regime">
-                                                    Régimen: <span t-field="company.l10n_mx_edi_fiscal_regime"/>
-                                                </div>
-                                            </div>
-                                            
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                        <td class="customer-cell">
-                            <table class="rounded-box customer-box">
-                                <tr>
-                                    <td class="box-pad">
-                                        <span class="legend">Receptor</span>
-                                        <div class="box-value party-box-value">
-                                            <div class="party-name upper"><t t-out="partner.name or ''"/></div>
-                                            <div class="party-address">
-                                                <div class="party-rfc">
-                                                    RFC: <t t-out="o.l10n_mx_edi_cfdi_customer_rfc or partner.vat or ''"/>
-                                                </div>
-                                                <div class="b">Domicilio:</div>
-                                                <div>
-                                                    <t t-out="partner.street or ''"/>
-                                                    <t t-if="partner.street2"> <t t-out="partner.street2"/></t>
-                                                </div>
-                                                <div>
-                                                    <t t-out="partner.zip or ''"/>
-                                                    <t t-out="(' ' + partner.city) if partner.city else ''"/>,
-                                                    <t t-out="partner.state_id.name or ''"/>
-                                                    <t t-out="(', ' + partner.country_id.name) if partner.country_id else ''"/>
-                                                </div>
-                                                <div t-if="partner.l10n_mx_edi_fiscal_regime">
-                                                    Régimen: <span t-field="partner.l10n_mx_edi_fiscal_regime"/>
-                                                </div>
-                                            </div>
-                                            
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
+                        <t t-call="custom_invoice_report.tecnika_doc_parties"/>
                         <td class="invoice-cell">
                             <table class="rounded-box invoice-card">
                                 <tr>
@@ -250,7 +322,7 @@
                                     </span>
                                     <t t-set="series" t-value="o._cfdi_line_series(line)"/>
                                     <t t-if="series">
-                                        <div class="small break">
+                                        <div class="concept-series break">
                                             Números de serie: <t t-out="', '.join(series)"/>
                                         </div>
                                     </t>
@@ -364,49 +436,7 @@
                                 </tr>
                             </table>
 
-                            <table class="vendor-totals">
-                                <tr>
-                                    <td class="vt-left">
-                                        <table class="mini-grid">
-                                            <tr>
-                                                <td>
-                                                    <span class="mini-title">Vendedor</span>
-                                                    <t t-out="o.invoice_user_id.name or ''"/>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        <div class="amount-words">
-                                            <span class="b">Importe en letras:</span>
-                                            <t t-out="o.amount_total_words or ''"/>
-                                        </div>
-                                    </td>
-                                    <td class="vt-right">
-                                        <table class="totals">
-                                            <tr>
-                                                <td class="lbl">SUBTOTAL:</td>
-                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(o.amount_untaxed)"/></td>
-                                            </tr>
-                                            <tr>
-                                                <td class="lbl">I.V.A.:</td>
-                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(taxes['traslado'])"/></td>
-                                            </tr>
-                                            <tr>
-                                                <td class="lbl">RETENCIÓN I.V.A.:</td>
-                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(taxes['retenido'])"/></td>
-                                            </tr>
-                                            <tr class="grand">
-                                                <td class="lbl">Divisa:</td>
-                                                <td class="tr"><t t-out="o.currency_id.name"/>
-                                                </td>
-                                            </tr>
-                                            <tr class="grand">
-                                                <td class="lbl">Total:</td>
-                                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(o.amount_total)"/></td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
+                            <t t-call="custom_invoice_report.tecnika_doc_totals"/>
                         </td>
                     </tr>
                 </table>
