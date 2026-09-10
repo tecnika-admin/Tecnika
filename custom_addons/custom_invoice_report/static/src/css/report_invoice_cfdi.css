@@ -329,8 +329,10 @@
     font-size: 11px;
     line-height: 1.1;
 }
-.concepts .small {
-    font-size: 7.5px;
+/* Las series se leen al mismo tamaño que la descripción de la partida. */
+.concepts .concept-series {
+    font-size: 11px;
+    line-height: 1.1;
 }
 /* Secciones y notas capturadas en las líneas de la factura. */
 .concept-section td {

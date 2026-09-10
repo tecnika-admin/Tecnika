@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!--  Mismo paperformat Carta que la factura: el diseño está calculado  -->
+    <!--  a 96 dpi para caber en una hoja Letter con márgenes mínimos.      -->
+    <!-- ================================================================== -->
+    <record id="sale.action_report_saleorder" model="ir.actions.report">
+        <field name="paperformat_id" ref="custom_invoice_report.paperformat_cfdi_carta"/>
+    </record>
+
+    <!-- Intervenimos el wrapper ``report_saleorder_raw`` en lugar del cuerpo
+         ``report_saleorder_document``: sale_stock, delivery y sale_subscription
+         hacen xpath DENTRO de ese cuerpo, así que reemplazarlo rompe la carga
+         del registro. El wrapper no lo hereda nadie, y de paso la pro-forma
+         (que llama al cuerpo estándar directamente) conserva su diseño.
+
+         El template de venta expone la orden como ``doc``; la renombramos a
+         ``o`` para que el cuerpo se lea igual que el de la factura. -->
+    <template id="report_saleorder_raw_tecnika"
+              inherit_id="sale.report_saleorder_raw">
+        <xpath expr="//t[@t-call='sale.report_saleorder_document']" position="replace">
+            <t t-set="o" t-value="doc"/>
+            <t t-call="custom_sale_report.report_quotation" t-lang="doc.partner_id.lang"/>
+        </xpath>
+    </template>
+
+    <template id="report_quotation">
+        <t t-set="company" t-value="o.company_id"/>
+        <t t-set="partner" t-value="o.partner_id"/>
+        <t t-set="rdata" t-value="o._tecnika_sale_render_data()"/>
+        <t t-set="taxes" t-value="rdata['taxes']"/>
+        <t t-set="cur" t-value="o.currency_id.symbol or '$'"/>
+        <t t-set="rows" t-value="o._tecnika_report_lines()"/>
+
+        <!-- Contrato de las subplantillas compartidas con la factura. -->
+        <t t-set="logo_src" t-value="rdata['logo_src']"/>
+        <t t-set="customer_rfc" t-value="partner.vat or ''"/>
+        <t t-set="vendor_name" t-value="o.user_id.name or ''"/>
+        <t t-set="amount_words" t-value="rdata['amount_words']"/>
+        <t t-set="doc_untaxed" t-value="o.amount_untaxed"/>
+        <t t-set="doc_total" t-value="o.amount_total"/>
+        <t t-set="currency_name" t-value="o.currency_id.name"/>
+
+        <div class="article" t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o.partner_id.lang or o.company_id.partner_id.lang">
+            <div class="page cfdi-page">
+
+                <div class="cfdi-watermark">
+                    <img t-att-src="rdata['watermark_src']" alt=""/>
+                </div>
+
+                <t t-call="custom_invoice_report.tecnika_doc_header"/>
+
+                <table class="customer-invoice-row">
+                    <tr>
+                        <t t-call="custom_invoice_report.tecnika_doc_parties"/>
+                        <td class="invoice-cell">
+                            <table class="rounded-box invoice-card">
+                                <tr>
+                                    <td class="box-pad">
+                                        <span class="legend-center"><t t-out="rdata['doc_title']"/></span>
+                                        <div class="invoice-folio"><t t-out="o.name or ''"/></div>
+                                        <table class="kv invoice-kv">
+                                            <tr>
+                                                <td class="k">Fecha:</td>
+                                                <td><t t-out="rdata['order_date']"/></td>
+                                            </tr>
+                                            <tr t-if="rdata['order_time']">
+                                                <td class="k">Hora:</td>
+                                                <td><t t-out="rdata['order_time']"/></td>
+                                            </tr>
+                                            <tr t-if="o.commitment_date">
+                                                <td class="k">Fecha de entrega:</td>
+                                                <td><t t-out="o.commitment_date.strftime('%d/%m/%Y')"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="k">Expedido:</td>
+                                                <td class="break" style="font-size: 10px;">
+                                                    <t t-out="(company.city or company.state_id.name or '').upper()"/>
+                                                    <t t-if="company.state_id">,
+                                                        <t t-out="(company.state_id.code or company.state_id.name).upper()"/>.
+                                                    </t>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Misma fila de campos redondeados que la factura, pero de
+                     cinco celdas: la cotización no lleva Vigencia. Los anchos
+                     van en línea (el 18% que ocupaba Vigencia se reparte de
+                     forma proporcional entre las cinco restantes) en vez de
+                     usar las clases .field-* , cuyos porcentajes están
+                     calculados para las seis celdas de la factura. -->
+                <table class="field-row" style="margin-top: 0.5em;">
+                    <tr>
+                        <td class="field-cell b" style="width: 19.5%;">
+                            <span class="legend">Referencia</span>
+                            <t t-out="o.client_order_ref or ''"/>
+                        </td>
+                        <td class="field-cell b" style="width: 17.1%;">
+                            <span class="legend">Días de crédito</span>
+                            <t t-out="rdata['credit_days']"/>
+                        </td>
+                        <td class="field-cell b" style="width: 17.1%;">
+                            <span class="legend">Método de pago</span>
+                            <t t-out="rdata['payment_policy']"/>
+                        </td>
+                        <td class="field-cell b" style="width: 23.15%;">
+                            <span class="legend">Uso CFDI</span>
+                            <t t-out="rdata['usage_display']"/>
+                        </td>
+                        <td class="field-cell b" style="width: 23.15%;">
+                            <span class="legend">Forma de pago</span>
+                            <t t-out="rdata['payment_way']"/>
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="rounded-box reference-box" t-if="o.origin">
+                    <tr>
+                        <td class="box-pad">
+                            <span class="legend">Documento origen</span>
+                            <t t-out="o.origin"/>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Partidas y leyenda dentro del mismo marco de la factura. -->
+                <div class="main-frame">
+                    <table class="concepts">
+                        <tr>
+                            <th class="concept-part">Part.</th>
+                            <th class="concept-description">Descripción</th>
+                            <th class="concept-packaging">Clave SAT</th>
+                            <th class="concept-key">Uni. de M. SAT</th>
+                            <th class="concept-uom">Uni. de M.</th>
+                            <th class="concept-quantity">Cantidad</th>
+                            <th class="concept-price">Precio U.</th>
+                            <th class="concept-amount">Importe</th>
+                        </tr>
+                        <t t-foreach="rows" t-as="row">
+                            <t t-set="line" t-value="row['line']"/>
+                            <tr t-if="row['type'] == 'product'">
+                                <td class="tc"><t t-out="row['partida']"/></td>
+                                <td class="concept-desc">
+                                    <span class="upper">
+                                        <t t-out="line.name or (line.product_id.display_name or '')"/>
+                                    </span>
+                                    <t t-set="series" t-value="o._tecnika_line_series(line)"/>
+                                    <t t-if="series">
+                                        <div class="concept-series break">
+                                            Números de serie: <t t-out="', '.join(series)"/>
+                                        </div>
+                                    </t>
+                                </td>
+                                <td class="tc"><t t-out="line.product_id.unspsc_code_id.code or ''"/></td>
+                                <td class="tc"><t t-out="line.product_uom_id.unspsc_code_id.code or ''"/></td>
+                                <td class="tc"><t t-out="line.product_uom_id.name or ''"/></td>
+                                <td class="tr"><t t-out="'{:,.2f}'.format(line.product_uom_qty)"/></td>
+                                <td class="tr"><t t-out="'{:,.2f}'.format(line.price_unit)"/></td>
+                                <td class="tr"><t t-out="cur + ' ' + '{:,.2f}'.format(line.price_subtotal)"/></td>
+                            </tr>
+                            <tr t-elif="row['type'] == 'line_section'" class="concept-section">
+                                <td colspan="8" class="break"><t t-out="line.name or ''"/></td>
+                            </tr>
+                            <tr t-else="" class="concept-note">
+                                <td colspan="8" class="break"><t t-out="line.name or ''"/></td>
+                            </tr>
+                        </t>
+                    </table>
+
+                    <div class="stamp-printed-note" style="margin-top: 18px;">
+                        Este documento no es un comprobante fiscal.
+                        <t t-if="rdata['is_quotation']">
+                            Los precios están sujetos a la vigencia indicada y a
+                            disponibilidad de existencias.
+                        </t>
+                    </div>
+                </div>
+
+                <t t-if="o.note">
+                    <table class="rounded-box observations">
+                        <tr>
+                            <td class="box-pad">
+                                <span class="legend">Terminos y condiciones</span>
+                                <span t-out="o.note"/>
+                            </td>
+                        </tr>
+                    </table>
+                </t>
+
+                <table class="bottom-area">
+                    <tr>
+                        <td class="bottom-content">
+                            <t t-call="custom_invoice_report.tecnika_doc_totals"/>
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </div>
+    </template>
+
+</odoo>
