@@ -1,0 +1,3 @@
+[submodule "pcs_cambia_precision_en_payment_edi_mx"]
+	path = pcs_cambia_precision_en_payment_edi_mx
+	url = git@github.com:DavidPerezpC/pcs_cambia_precision_en_payment_edi_mx.git
