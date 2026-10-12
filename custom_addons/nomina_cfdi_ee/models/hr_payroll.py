@@ -1018,11 +1018,16 @@ class HrPayslip(models.Model):
         payslip_total_SEIN = 0
         payslip_total_JPRE_p = 0
         payslip_total_JPRE_t = 0
-        antiguedad = 1
+        antiguedad = ''
         request_params = {}
 
         if self.date_to and self.contract_id.date_start:
-            antiguedad = int((self.date_to - self.contract_id.date_start + timedelta(days=1)).days/7)
+            semanas = int((self.date_to - self.contract_id.date_start + timedelta(days=1)).days/7)
+            if semanas < 1:
+                antiguedad = 'P' + str(int((self.date_to - self.contract_id.date_start + timedelta(days=1)).days)) + 'D'
+            else:
+                antiguedad = 'P' + str(semanas) + 'W'
+
 
         #************************  Percepciones ************************
         percepciones_ids = self.env['hr.payslip.line'].search(['|',('category_id.code','=','ALW'),('category_id.code','=','BASIC'),('slip_id','=',self.id)])
@@ -1444,7 +1449,7 @@ class HrPayslip(models.Model):
                             'TipoContrato': contrato,
                             'TipoRegimen': regimen,
                             'TipoJornada': self.employee_id.jornada,
-                            'Antiguedad': 'P' + str(antiguedad) + 'W' if contrato not in ['09', '10', '99'] else None,
+                            'Antiguedad': antiguedad if contrato not in ['09', '10', '99'] else None,
                             'Banco': banco,
                             'CuentaBancaria': self.employee_id.no_cuenta.rjust(10, '0') if self.employee_id.no_cuenta else None,
                             'FechaInicioRelLaboral': self.contract_id.date_start and self.contract_id.date_start.strftime(DF) if contrato not in ['09', '10', '99'] else None,
