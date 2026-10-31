@@ -90,6 +90,7 @@ class AccountMove(models.Model):
             'payment_way': self._cfdi_payment_way_display(cfdi),
             'credit_days': self._cfdi_credit_days(),
             'emission_time': self._cfdi_emission_time(cfdi),
+            'issued_address': self._cfdi_issued_address(),
             'taxes': self._tecnika_tax_summary(),
             'bank_accounts': self._tecnika_bank_accounts(),
             'amount_words': self._tecnika_amount_words(),
@@ -115,6 +116,19 @@ class AccountMove(models.Model):
         if method:
             return ' - '.join(part for part in (method.code, method.name) if part)
         return ''
+
+    def _cfdi_issued_address(self):
+        """Partner printed as the expedition place ("Expedido").
+
+        Mirrors the CFDI: l10n_mx_edi_extended uses the journal's
+        ``Address Issued`` as LugarExpedicion when set, otherwise the company.
+        The field only exists with l10n_mx_edi_extended installed.
+        """
+        self.ensure_one()
+        journal = self.journal_id
+        if 'l10n_mx_address_issued_id' in journal._fields and journal.l10n_mx_address_issued_id:
+            return journal.l10n_mx_address_issued_id
+        return self.company_id.partner_id
 
     def _cfdi_emission_time(self, cfdi):
         """Emission clock time (``hh:mm:ss``) of the CFDI.

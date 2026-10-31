@@ -246,9 +246,10 @@
                                             <tr>
                                                 <td class="k">Expedido:</td>
                                                 <td class="break" style="font-size: 10px;">
-                                                    <t t-out="(company.city or company.state_id.name or '').upper()"/>
-                                                    <t t-if="company.state_id">,
-                                                        <t t-out="(company.state_id.code or company.state_id.name).upper()"/>.
+                                                    <t t-set="issued" t-value="rdata['issued_address']"/>
+                                                    <t t-out="(issued.city or issued.state_id.name or '').upper()"/>
+                                                    <t t-if="issued.state_id">,
+                                                        <t t-out="(issued.state_id.code or issued.state_id.name).upper()"/>.
                                                     </t>
                                                 </td>
                                             </tr>
