@@ -118,7 +118,7 @@ class AccountMove(models.Model):
         return ''
 
     def _cfdi_issued_address(self):
-        """Partner printed as the expedition place ("Expedido").
+        """Partner printed as the issuer address ("Emisor" and "Expedido").
 
         Mirrors the CFDI: l10n_mx_edi_extended uses the journal's
         ``Address Issued`` as LugarExpedicion when set, otherwise the company.
