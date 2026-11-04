@@ -74,8 +74,10 @@
         </table>
     </template>
 
-    <!-- Contrato: company, partner, customer_rfc. Emite las dos celdas. -->
+    <!-- Contrato: company, partner, customer_rfc. Emite las dos celdas.
+         Opcional: issuer_address, domicilio del emisor (por defecto, la compañía). -->
     <template id="tecnika_doc_parties">
+        <t t-set="issuer" t-value="issuer_address or company.partner_id"/>
         <td class="issuer-cell">
             <table class="rounded-box issuer-box">
                 <tr>
@@ -89,15 +91,15 @@
                                 </div>
                                 <div class="b">Domicilio:</div>
                                 <div>
-                                    <t t-out="company.street or ''"/>
-                                    <t t-if="company.street2"> <t t-out="company.street2"/></t>
+                                    <t t-out="issuer.street or ''"/>
+                                    <t t-if="issuer.street2"> <t t-out="issuer.street2"/></t>
                                 </div>
                                 <div>
-                                    <t t-out="company.zip or ''"/>
-                                    <t t-out="(' ' + company.city) if company.city else ''"/>,
-                                    <t t-out="company.state_id.name or ''"/>
+                                    <t t-out="issuer.zip or ''"/>
+                                    <t t-out="(' ' + issuer.city) if issuer.city else ''"/>,
+                                    <t t-out="issuer.state_id.name or ''"/>
                                 </div>
-                                <div><t t-out="company.country_id.name or ''"/></div>
+                                <div><t t-out="issuer.country_id.name or ''"/></div>
                                 <div t-if="company.l10n_mx_edi_fiscal_regime">
                                     Régimen: <span t-field="company.l10n_mx_edi_fiscal_regime"/>
                                 </div>
@@ -201,6 +203,7 @@
 
         <!-- Contrato de las subplantillas compartidas con la cotización. -->
         <t t-set="logo_src" t-value="rdata['logo_src']"/>
+        <t t-set="issuer_address" t-value="rdata['issued_address']"/>
         <t t-set="customer_rfc" t-value="o.l10n_mx_edi_cfdi_customer_rfc or partner.vat or ''"/>
         <t t-set="vendor_name" t-value="o.invoice_user_id.name or ''"/>
         <t t-set="amount_words" t-value="rdata['amount_words']"/>
@@ -246,9 +249,9 @@
                                             <tr>
                                                 <td class="k">Expedido:</td>
                                                 <td class="break" style="font-size: 10px;">
-                                                    <t t-out="(company.city or company.state_id.name or '').upper()"/>
-                                                    <t t-if="company.state_id">,
-                                                        <t t-out="(company.state_id.code or company.state_id.name).upper()"/>.
+                                                    <t t-out="(issuer_address.city or issuer_address.state_id.name or '').upper()"/>
+                                                    <t t-if="issuer_address.state_id">,
+                                                        <t t-out="(issuer_address.state_id.code or issuer_address.state_id.name).upper()"/>.
                                                     </t>
                                                 </td>
                                             </tr>
