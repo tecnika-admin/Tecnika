@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_partner_form_enrichment" model="ir.ui.view">
+        <field name="name">res.partner.form.enrichment</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='sales_purchases']" position="before">
+                <page name="commercial_classification" string="Clasificación comercial">
+                    <div class="text-muted mb-2" invisible="not parent_id or is_company">
+                        Los datos de empresa se heredan de ella y se editan allí.
+                    </div>
+                    <group>
+                        <group name="commercial_classification_company" string="Empresa">
+                            <field name="company_size" readonly="parent_id and not is_company"/>
+                            <field name="commercial_value" readonly="parent_id and not is_company"/>
+                            <field name="customer_stage" readonly="parent_id and not is_company"/>
+                        </group>
+                        <group name="commercial_classification_contact" string="Contacto">
+                            <field name="contact_profile" invisible="is_company"/>
+                            <field name="linkedin_url" widget="url" placeholder="https://www.linkedin.com/in/..."/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+            <!-- Puesto e Industria son nativos: se mueven a la pestaña, no se duplican. -->
+            <xpath expr="//group[@name='commercial_classification_company']" position="inside">
+                <xpath expr="//field[@name='industry_id']" position="move"/>
+            </xpath>
+            <xpath expr="//group[@name='commercial_classification_company']/field[@name='industry_id']" position="attributes">
+                <attribute name="invisible"/>
+                <attribute name="string">Sector</attribute>
+                <attribute name="readonly">parent_id and not is_company</attribute>
+            </xpath>
+            <xpath expr="//group[@name='commercial_classification_contact']/field[@name='contact_profile']" position="before">
+                <xpath expr="//field[@name='function'][not(ancestor::field)]" position="move"/>
+            </xpath>
+            <xpath expr="//group[@name='commercial_classification_contact']/field[@name='function']" position="attributes">
+                <attribute name="string">Cargo actual</attribute>
+            </xpath>
+            <xpath expr="//field[@name='child_ids']/form//field[@name='function']" position="attributes">
+                <attribute name="placeholder">Cargo actual</attribute>
+            </xpath>
+            <xpath expr="//field[@name='child_ids']/form//field[@name='function']/.." position="after">
+                <div invisible="is_company or type != 'contact'" class="d-flex align-items-baseline">
+                    <i class="fa fa-fw me-1 fa-id-badge text-primary" title="Perfil"/>
+                    <field name="contact_profile" class="w-100" placeholder="Perfil"/>
+                </div>
+                <div invisible="is_company or type != 'contact'" class="d-flex align-items-baseline">
+                    <i class="fa fa-fw me-1 fa-linkedin text-primary" title="LinkedIn"/>
+                    <field name="linkedin_url" widget="url" class="w-100" placeholder="LinkedIn"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_partner_tree_enrichment" model="ir.ui.view">
+        <field name="name">res.partner.list.enrichment</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="category_id" position="after">
+                <field name="company_size" optional="hide" readonly="parent_id and not is_company"/>
+                <field name="commercial_value" optional="hide" readonly="parent_id and not is_company"/>
+                <field name="customer_stage" optional="hide" readonly="parent_id and not is_company"/>
+                <field name="contact_profile" optional="hide"/>
+                <field name="linkedin_url" widget="url" optional="hide"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_res_partner_filter_enrichment" model="ir.ui.view">
+        <field name="name">res.partner.search.enrichment</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <field name="user_id" position="after">
+                <field name="company_size"/>
+                <field name="commercial_value"/>
+                <field name="customer_stage"/>
+                <field name="contact_profile"/>
+                <field name="linkedin_url"/>
+            </field>
+            <xpath expr="//filter[@name='group_country']" position="after">
+                <filter name="group_company_size" string="Tamaño" context="{'group_by': 'company_size'}"/>
+                <filter name="group_commercial_value" string="Valor comercial" context="{'group_by': 'commercial_value'}"/>
+                <filter name="group_customer_stage" string="Etapa del cliente" context="{'group_by': 'customer_stage'}"/>
+                <filter name="group_contact_profile" string="Perfil" context="{'group_by': 'contact_profile'}"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
